@@ -1,0 +1,37 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(go build:*)",
+      "Bash(taskkill:*)",
+      "Bash(start http://localhost:8080)",
+      "Bash(go run:*)",
+      "Bash(del timetracker.db)",
+      "Bash(copy index.html index-material.html)",
+      "Bash(nul)",
+      "Bash(start work-time-tracker-go.exe)",
+      "Bash(python convert_archive_style.py:*)",
+      "Bash(del \"C:\\Users\\Utente\\Desktop\\PROGETTI\\work-time-tracker-go\\convert_archive_style.py\" \"C:\\Users\\Utente\\Desktop\\PROGETTI\\work-time-tracker-go\\create_icon.py\" \"C:\\Users\\Utente\\Desktop\\PROGETTI\\work-time-tracker-go\\create_ico.py\")",
+      "Bash(python update_v2_styles.py:*)",
+      "Bash(tasklist:*)",
+      "Bash(findstr:*)",
+      "Bash(powershell -NoProfile -ExecutionPolicy Bypass -Command \"[Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime] | Out-Null; [Windows.UI.Notifications.ToastNotification, Windows.UI.Notifications, ContentType = WindowsRuntime] | Out-Null; [Windows.Data.Xml.Dom.XmlDocument, Windows.Data.Xml.Dom.XmlDocument, ContentType = WindowsRuntime] | Out-Null; $APP_ID = ''PrendiTempo''; $template = @''\n<toast>\n\t<visual>\n\t\t<binding template=\"\"ToastGeneric\"\">\n\t\t\t<text>Test PrendiTempo</text>\n\t\t\t<text>Questa è una notifica di test</text>\n\t\t</binding>\n\t</visual>\n</toast>\n''@; $xml = New-Object Windows.Data.Xml.Dom.XmlDocument; $xml.LoadXml($template); $toast = New-Object Windows.UI.Notifications.ToastNotification $xml; [Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier($APP_ID).Show($toast)\")",
+      "Bash(cmd //c \"taskkill /F /IM work-time-tracker-go.exe 2>nul\")",
+      "Bash(python update_theme.py:*)",
+      "Bash(python:*)",
+      "Bash(reg query HKEY_CURRENT_USERSoftwareMicrosoftWindowsCurrentVersionRun /v PrendiTempo)",
+      "Bash(reg query \"HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run\" /v PrendiTempo)",
+      "Bash(reg query HKCUSoftwareMicrosoftWindowsCurrentVersionRun)",
+      "Bash(cmd //c \"start work-time-tracker-go.exe\")",
+      "Bash(cmd //c \"taskkill /F /IM work-time-tracker-go.exe\")",
+      "Bash(cmd //c \"start C:\\Users\\Utente\\Desktop\\PROGETTI\\work-time-tracker-go\\work-time-tracker-go.exe\")",
+      "Bash(powershell -Command:*)",
+      "Bash(build_release.bat)",
+      "Bash(cmd //c \"cd /d C:\\Users\\Utente\\Desktop\\PROGETTI\\work-time-tracker-go && build_release.bat\")",
+      "Bash(cmd //c \"C:\\Users\\Utente\\Desktop\\PROGETTI\\work-time-tracker-go\\build_release.bat\")",
+      "Bash(cmd //c \"taskkill /F /IM PrendiTempo.exe 2>nul & taskkill /F /IM work-time-tracker-go.exe 2>nul\")",
+      "Bash(cmd //c \"taskkill /F /IM PrendiTempo.exe 2>nul\")"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
