@@ -365,7 +365,8 @@ func (a *App) StartTracking(projectID int, activityType *string) error {
 
 	// Crea watcher
 	watcher := tracker.NewTimeWatcher()
-	watcher.SetIdleThreshold(5 * 60) // 5 minuti
+	idleMinutes := GetGlobalIdleThreshold()
+	watcher.SetIdleThreshold(idleMinutes * 60) // Converti minuti in secondi
 
 	// Imposta callback per salvataggio periodico
 	watcher.SetSaveCallback(func(totalSeconds int) error {
@@ -492,6 +493,24 @@ func (a *App) AttributeIdle(projectID int, isBreak bool) error {
 
 	globalWatcher.ClearPendingIdlePeriod()
 	return nil
+}
+
+// SetIdleThreshold imposta la soglia di inattività in minuti
+func (a *App) SetIdleThreshold(minutes int) {
+	if minutes < 1 {
+		minutes = 1
+	}
+	SetGlobalIdleThreshold(minutes)
+
+	// Se il watcher è attivo, aggiorna anche la sua soglia
+	if globalWatcher != nil {
+		globalWatcher.SetIdleThreshold(minutes * 60)
+	}
+}
+
+// GetIdleThreshold ritorna la soglia di inattività corrente in minuti
+func (a *App) GetIdleThreshold() int {
+	return GetGlobalIdleThreshold()
 }
 
 // === EXPORT/IMPORT ===

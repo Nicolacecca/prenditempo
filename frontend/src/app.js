@@ -9,6 +9,7 @@ import { CheckIdlePeriod, AttributeIdle } from './wailsjs/go/main/App.js';
 import { ExportData, ImportData } from './wailsjs/go/main/App.js';
 import { SaveReportJSON, SaveReportText, ImportProjectJSON } from './wailsjs/go/main/App.js';
 import { IsAutoStartEnabled, EnableAutoStart, DisableAutoStart } from './wailsjs/go/main/App.js';
+import { SetIdleThreshold, GetIdleThreshold } from './wailsjs/go/main/App.js';
 
 // Variabili globali
 let currentReportProjectId = null;
@@ -1499,11 +1500,14 @@ window.showSection = function(section) {
     }
 }
 
-// Carica valore tempo di inattività da localStorage
-function loadIdleThreshold() {
-    const saved = localStorage.getItem('idleThreshold');
-    if (saved) {
-        document.getElementById('idleThresholdSetting').value = saved;
+// Carica valore tempo di inattività dal backend
+async function loadIdleThreshold() {
+    try {
+        const threshold = await GetIdleThreshold();
+        document.getElementById('idleThresholdSetting').value = threshold;
+    } catch (error) {
+        console.error('Errore caricamento soglia inattività:', error);
+        document.getElementById('idleThresholdSetting').value = 5; // Default
     }
 }
 
@@ -1870,11 +1874,16 @@ window.deleteActivityTypeById = async function(id, name) {
 
 // === IMPOSTAZIONI IDLE ===
 
-window.saveIdleThreshold = function() {
-    const threshold = document.getElementById('idleThresholdSetting').value;
+window.saveIdleThreshold = async function() {
+    const threshold = parseInt(document.getElementById('idleThresholdSetting').value);
     if (threshold && threshold > 0) {
-        localStorage.setItem('idleThreshold', threshold);
-        showNotification('Tempo di inattività salvato!', 'success');
+        try {
+            await SetIdleThreshold(threshold);
+            showNotification('Tempo di inattività salvato!', 'success');
+        } catch (error) {
+            console.error('Errore salvataggio soglia:', error);
+            showNotification('Errore salvataggio', 'error');
+        }
     } else {
         showNotification('Inserisci un valore valido', 'error');
     }
