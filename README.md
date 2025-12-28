@@ -19,8 +19,9 @@ App desktop nativa per Windows per il tracciamento del tempo lavorativo, svilupp
 - **System tray** - L'app rimane attiva nella system tray per un accesso rapido
 
 ## Screenshot
-
-*[Screenshot da aggiungere]*
+<img width="1907" height="1031" alt="dashboard" src="https://github.com/user-attachments/assets/c7446f69-b017-4cdd-ae9e-789d09007fac" />
+<img width="1920" height="1031" alt="Archivio" src="https://github.com/user-attachments/assets/3d7e6c4c-605e-4f6e-8d24-1a7f25e3aa65" />
+<img width="1905" height="1032" alt="Impostazioni" src="https://github.com/user-attachments/assets/b429c734-847c-48c3-b2bb-f81c90b14c18" />
 
 ## Requisiti
 
