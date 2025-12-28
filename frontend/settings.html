@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Impostazioni - PrendiTempo</title>
+    <link rel="stylesheet" href="src/style.css">
+    <style>
+        /* Pattern Option Styles */
+        .pattern-option {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            padding: 12px;
+            border: 1px solid #4a4a4a;
+            border-radius: 16px;
+            cursor: pointer;
+            transition: all 0.2s;
+            background: #1a1a1a;
+        }
+
+        .pattern-option:hover {
+            border-color: #ff6b2b;
+            background: #2a2a2a;
+        }
+
+        .pattern-option.selected {
+            border-color: #ff6b2b;
+            background: #2a2a2a;
+            box-shadow: 0 0 0 3px rgba(255, 107, 43, 0.2);
+        }
+
+        .pattern-option span {
+            font-size: 0.8em;
+            color: #999999;
+            font-weight: 500;
+        }
+
+        .pattern-preview {
+            width: 50px;
+            height: 30px;
+            border-radius: 4px;
+        }
+
+        .pattern-solid { background: #ff6b2b; }
+        .pattern-stripes { background: repeating-linear-gradient(45deg, #ff6b2b, #ff6b2b 5px, #ff8b5a 5px, #ff8b5a 10px); }
+        .pattern-dots { background-color: #ff6b2b; background-image: radial-gradient(circle, #ffffff 2px, transparent 2px); background-size: 10px 10px; }
+
+        /* Range input styling */
+        input[type="range"] {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 8px;
+            border-radius: 4px;
+            background: #3a3a3a;
+            outline: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #ff6b2b;
+            cursor: pointer;
+        }
+
+        /* Activity type item for drag and drop */
+        .activity-type-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px;
+            background: #1a1a1a;
+            border-radius: 16px;
+            border-left: 4px solid #ff6b2b;
+            cursor: move;
+            transition: all 0.2s;
+            border: 1px solid #3a3a3a;
+            margin-bottom: 10px;
+        }
+
+        .activity-type-item:hover {
+            background: #2a2a2a;
+        }
+
+        .activity-type-item.dragging {
+            opacity: 0.5;
+        }
+
+        .drag-handle {
+            font-size: 1.5em;
+            color: #999999;
+            cursor: grab;
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <div class="header">
+        <div class="header-content">
+            <div class="logo">PrendiTempo</div>
+            <nav class="nav">
+                <a href="index.html" class="nav-link">Dashboard</a>
+                <a href="archive.html" class="nav-link">Archivio</a>
+                <a href="settings.html" class="nav-link active">Impostazioni</a>
+            </nav>
+        </div>
+    </div>
+
+    <div class="container">
+        <h1>Impostazioni</h1>
+        <p class="subtitle" style="color: #999999; margin-bottom: 20px;">Configura PrendiTempo</p>
+
+        <!-- Tipi di Attività -->
+        <div class="card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h2 style="margin: 0;">Tipi di Attività</h2>
+                <button class="btn btn-success" style="width: auto; padding: 10px 20px; margin: 0;" onclick="openActivityTypeModal()">+ Nuovo Tipo</button>
+            </div>
+            <p style="color: #999999; margin-bottom: 15px;">Trascina per riordinare i tipi di attività. Ogni tipo può avere un colore e pattern diverso.</p>
+
+            <div id="activityTypesList">
+                <p style="color: #6b7280;">Caricamento tipi attività...</p>
+            </div>
+        </div>
+
+        <!-- Tempo di Inattività -->
+        <div class="card">
+            <h2>Tempo di Inattività</h2>
+            <p style="color: #999999; margin-bottom: 15px;">Dopo quanti minuti di inattività il sistema deve chiedere dove attribuire il tempo</p>
+
+            <div style="display: flex; gap: 10px; align-items: center;">
+                <input type="number" id="idleThresholdSetting" placeholder="5" value="5" min="1" style="width: 100px;">
+                <span style="color: #ffffff;">minuti</span>
+                <button class="btn btn-success" style="width: auto; padding: 10px 20px; margin: 0;" onclick="saveIdleThreshold()">Salva</button>
+            </div>
+        </div>
+
+        <!-- Export/Import -->
+        <div class="card">
+            <h2>Backup Dati</h2>
+            <p style="color: #999999; margin-bottom: 15px;">Esporta o importa i tuoi dati</p>
+
+            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                <button class="btn" style="background: #ffffff; color: #1a1a1a;" onclick="exportData()">Esporta Dati</button>
+                <input type="file" id="importFile" accept=".json" style="display: none;" onchange="importData(event)">
+                <button class="btn btn-success" onclick="document.getElementById('importFile').click()">Importa Dati</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="notification" id="notification">
+        <p id="notificationText"></p>
+    </div>
+
+    <!-- Modal per configurazione tipo di attività -->
+    <div class="modal" id="activityTypeModal">
+        <div class="modal-content" style="max-width: 700px;">
+            <div class="modal-header">
+                <h2 id="activityTypeModalTitle">Nuovo Tipo di Attività</h2>
+                <p style="color: #6b7280;">Configura un tipo di attività personalizzato</p>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="activityTypeId" value="">
+                <input type="hidden" id="activityTypePattern" value="solid">
+                <input type="hidden" id="activityTypeOrder" value="1">
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px;">
+                    <!-- Colonna Sinistra - Configurazione -->
+                    <div>
+                        <label style="color: #ffffff; font-weight: 600; margin-bottom: 10px; display: block;">
+                            Nome <span style="color: #ef4444;">*</span>
+                        </label>
+                        <input type="text" id="activityTypeName" placeholder="es. SVILUPPO, TESTING">
+
+                        <label style="color: #ffffff; font-weight: 600; margin-bottom: 10px; margin-top: 20px; display: block;">
+                            Tonalità Colore
+                        </label>
+                        <p style="color: #999999; font-size: 0.85em; margin-bottom: 10px;">
+                            Scegli quanto chiaro o scuro deve essere rispetto al colore base
+                        </p>
+                        <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 20px;">
+                            <span style="font-size: 0.9em; color: #999999;">Scuro</span>
+                            <input type="range" id="activityTypeColor" min="-1" max="1" step="0.1" value="0">
+                            <span style="font-size: 0.9em; color: #999999;">Chiaro</span>
+                        </div>
+                        <div style="text-align: center; margin-bottom: 20px;">
+                            <span style="background: #1a1a1a; padding: 5px 15px; border-radius: 24px; font-weight: 600; color: #ffffff; border: 1px solid #3a3a3a;">
+                                Valore: <span id="colorValue">0.0</span>
+                            </span>
+                        </div>
+
+                        <label style="color: #ffffff; font-weight: 600; margin-bottom: 10px; display: block;">
+                            Pattern Visivo
+                        </label>
+                        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 15px;">
+                            <div class="pattern-option selected" data-pattern="solid" onclick="selectPattern('solid')">
+                                <div class="pattern-preview pattern-solid"></div>
+                                <span>Solido</span>
+                            </div>
+                            <div class="pattern-option" data-pattern="stripes" onclick="selectPattern('stripes')">
+                                <div class="pattern-preview pattern-stripes"></div>
+                                <span>Strisce</span>
+                            </div>
+                            <div class="pattern-option" data-pattern="dots" onclick="selectPattern('dots')">
+                                <div class="pattern-preview pattern-dots"></div>
+                                <span>Puntini</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Colonna Destra - Anteprima Live -->
+                    <div>
+                        <label style="color: #ffffff; font-weight: 600; margin-bottom: 10px; display: block;">
+                            Anteprima
+                        </label>
+                        <div style="background: #1a1a1a; border: 1px solid #3a3a3a; border-radius: 16px; padding: 20px;">
+                            <p style="color: #999999; font-size: 0.9em; margin-bottom: 15px; text-align: center;">
+                                Come apparirà nella timeline
+                            </p>
+                            <div style="background: #242424; border-radius: 16px; padding: 15px; border: 1px solid #3a3a3a;">
+                                <div style="font-size: 0.85em; color: #999999; margin-bottom: 10px; font-weight: 600;">
+                                    Timeline Preview
+                                </div>
+                                <div style="height: 40px; background: #000000; border-radius: 8px; overflow: hidden; position: relative;">
+                                    <div id="activityPreview" style="height: 100%; width: 60%; position: absolute; left: 20%; background: #ffffff;"></div>
+                                </div>
+                                <div style="margin-top: 15px; text-align: center;">
+                                    <div style="display: inline-block; padding: 8px 16px; border-radius: 24px; background: #1a1a1a; border: 1px solid #3a3a3a;">
+                                        <span style="font-weight: 600; color: #ffffff;" id="previewName">Nome Attività</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-buttons">
+                <button class="btn" style="background: #6b7280;" onclick="closeActivityTypeModal()">Annulla</button>
+                <button class="btn btn-success" onclick="saveActivityType()">Salva</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="src/wailsjs/runtime/runtime.js"></script>
+    <script>
+        // Funzioni helper per chiamare i bindings Wails direttamente
+        function GetActivityTypes() {
+            return window.go.main.App.GetActivityTypes();
+        }
+        function CreateActivityType(name, colorVariant, pattern, displayOrder) {
+            return window.go.main.App.CreateActivityType(name, colorVariant, pattern, displayOrder);
+        }
+        function UpdateActivityType(id, name, colorVariant, pattern, displayOrder) {
+            return window.go.main.App.UpdateActivityType(id, name, colorVariant, pattern, displayOrder);
+        }
+        function DeleteActivityType(id) {
+            return window.go.main.App.DeleteActivityType(id);
+        }
+        function ReorderActivityTypes(updates) {
+            return window.go.main.App.ReorderActivityTypes(updates);
+        }
+        function ExportData() {
+            return window.go.main.App.ExportData();
+        }
+        function ImportData(data) {
+            return window.go.main.App.ImportData(data);
+        }
+
+        let activityTypes = [];
+
+        // Carica tipi di attività
+        async function loadActivityTypes() {
+            try {
+                activityTypes = await GetActivityTypes();
+                displayActivityTypes(activityTypes || []);
+            } catch (error) {
+                console.error('Errore caricamento tipi attività:', error);
+            }
+        }
+
+        // Visualizza tipi di attività con drag and drop
+        function displayActivityTypes(types) {
+            const container = document.getElementById('activityTypesList');
+
+            if (!types || types.length === 0) {
+                container.innerHTML = '<p style="color: #6b7280;">Nessun tipo di attività configurato</p>';
+                return;
+            }
+
+            const patternNames = { 'solid': 'Solido', 'stripes': 'Strisce', 'dots': 'Puntini' };
+
+            let html = '';
+            types.forEach((type, index) => {
+                const colorDesc = type.color_variant > 0 ? 'chiaro' : type.color_variant < 0 ? 'scuro' : 'normale';
+                const patternName = patternNames[type.pattern] || type.pattern;
+
+                html += `
+                    <div class="activity-type-item" draggable="true" data-id="${type.id}" data-order="${type.display_order}">
+                        <div style="display: flex; align-items: center; gap: 15px; flex: 1;">
+                            <div class="drag-handle">&#x2801;&#x2801;&#x2801;</div>
+                            <div style="flex: 1;">
+                                <strong style="font-size: 1.1em; color: #ffffff;">${type.name}</strong>
+                                <p style="color: #999999; margin: 5px 0 0 0; font-size: 0.9em;">
+                                    Colore: ${colorDesc} (${type.color_variant.toFixed(1)}) | Pattern: ${patternName}
+                                </p>
+                            </div>
+                        </div>
+                        <div style="display: flex; gap: 10px;">
+                            <button class="btn" style="width: auto; padding: 8px 16px; margin: 0;" onclick="editActivityType(${type.id})">Modifica</button>
+                            <button class="btn" style="width: auto; padding: 8px 16px; margin: 0; background: #ef4444; color: white;" onclick="deleteActivityType(${type.id}, '${type.name.replace(/'/g, "\\'")}')">Elimina</button>
+                        </div>
+                    </div>
+                `;
+            });
+
+            container.innerHTML = html;
+            initializeDragAndDrop();
+        }
+
+        // Inizializza drag and drop
+        function initializeDragAndDrop() {
+            const items = document.querySelectorAll('.activity-type-item');
+            let draggedElement = null;
+
+            items.forEach(item => {
+                item.addEventListener('dragstart', (e) => {
+                    draggedElement = item;
+                    item.classList.add('dragging');
+                    e.dataTransfer.effectAllowed = 'move';
+                });
+
+                item.addEventListener('dragend', () => {
+                    item.classList.remove('dragging');
+                    draggedElement = null;
+                    document.querySelectorAll('.activity-type-item').forEach(i => i.style.borderTop = '');
+                });
+
+                item.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = 'move';
+                });
+
+                item.addEventListener('dragenter', (e) => {
+                    if (item !== draggedElement) {
+                        item.style.borderTop = '3px solid #ff6b2b';
+                    }
+                });
+
+                item.addEventListener('dragleave', () => {
+                    item.style.borderTop = '';
+                });
+
+                item.addEventListener('drop', async (e) => {
+                    e.preventDefault();
+                    item.style.borderTop = '';
+
+                    if (draggedElement && draggedElement !== item) {
+                        const draggedId = parseInt(draggedElement.getAttribute('data-id'));
+                        const droppedOnId = parseInt(item.getAttribute('data-id'));
+
+                        // Riordina l'array
+                        const draggedIndex = activityTypes.findIndex(t => t.id === draggedId);
+                        const droppedIndex = activityTypes.findIndex(t => t.id === droppedOnId);
+
+                        const temp = activityTypes[draggedIndex];
+                        activityTypes.splice(draggedIndex, 1);
+                        activityTypes.splice(droppedIndex, 0, temp);
+
+                        // Aggiorna display_order
+                        activityTypes.forEach((type, index) => {
+                            type.display_order = index + 1;
+                        });
+
+                        // Salva nuovo ordine
+                        try {
+                            const updates = activityTypes.map(t => ({ id: t.id, display_order: t.display_order }));
+                            await ReorderActivityTypes(updates);
+                            showNotification('Ordine aggiornato!', 'success');
+                            displayActivityTypes(activityTypes);
+                        } catch (error) {
+                            console.error('Errore riordino:', error);
+                            showNotification('Errore riordino', 'error');
+                            loadActivityTypes();
+                        }
+                    }
+                });
+            });
+        }
+
+        // Apri modale per nuovo tipo
+        window.openActivityTypeModal = function() {
+            document.getElementById('activityTypeModalTitle').textContent = 'Nuovo Tipo di Attività';
+            document.getElementById('activityTypeId').value = '';
+            document.getElementById('activityTypeName').value = '';
+            document.getElementById('activityTypeColor').value = '0';
+            document.getElementById('activityTypePattern').value = 'solid';
+            document.getElementById('activityTypeOrder').value = activityTypes.length + 1;
+            document.getElementById('colorValue').textContent = '0.0';
+
+            selectPattern('solid');
+            updateActivityPreview();
+
+            document.getElementById('activityTypeModal').classList.add('show');
+        }
+
+        // Modifica tipo esistente
+        window.editActivityType = function(id) {
+            const type = activityTypes.find(t => t.id === id);
+            if (!type) return;
+
+            document.getElementById('activityTypeModalTitle').textContent = 'Modifica Tipo di Attività';
+            document.getElementById('activityTypeId').value = type.id;
+            document.getElementById('activityTypeName').value = type.name;
+            document.getElementById('activityTypeColor').value = type.color_variant;
+            document.getElementById('activityTypePattern').value = type.pattern || 'solid';
+            document.getElementById('activityTypeOrder').value = type.display_order;
+            document.getElementById('colorValue').textContent = type.color_variant.toFixed(1);
+
+            selectPattern(type.pattern || 'solid');
+            updateActivityPreview();
+
+            document.getElementById('activityTypeModal').classList.add('show');
+        }
+
+        window.closeActivityTypeModal = function() {
+            document.getElementById('activityTypeModal').classList.remove('show');
+        }
+
+        // Salva tipo di attività
+        window.saveActivityType = async function() {
+            const id = document.getElementById('activityTypeId').value;
+            const name = document.getElementById('activityTypeName').value.trim();
+            const colorVariant = parseFloat(document.getElementById('activityTypeColor').value);
+            const pattern = document.getElementById('activityTypePattern').value;
+            const displayOrder = parseInt(document.getElementById('activityTypeOrder').value);
+
+            if (!name) {
+                showNotification('Inserisci un nome', 'error');
+                return;
+            }
+
+            try {
+                if (id) {
+                    await UpdateActivityType(parseInt(id), name, colorVariant, pattern, displayOrder);
+                    showNotification('Tipo aggiornato!', 'success');
+                } else {
+                    await CreateActivityType(name, colorVariant, pattern, displayOrder);
+                    showNotification('Tipo creato!', 'success');
+                }
+                closeActivityTypeModal();
+                await loadActivityTypes();
+            } catch (error) {
+                console.error('Errore salvataggio tipo attività:', error);
+                showNotification('Errore: ' + (error.message || error), 'error');
+            }
+        }
+
+        // Elimina tipo di attività
+        window.deleteActivityType = async function(id, name) {
+            if (!confirm(`Vuoi eliminare "${name}"?`)) return;
+
+            try {
+                await DeleteActivityType(id);
+                showNotification('Tipo attività eliminato!', 'success');
+                await loadActivityTypes();
+            } catch (error) {
+                console.error('Errore eliminazione:', error);
+                showNotification('Errore: ' + error, 'error');
+            }
+        }
+
+        // Seleziona pattern
+        window.selectPattern = function(patternName) {
+            document.querySelectorAll('.pattern-option').forEach(opt => opt.classList.remove('selected'));
+            const selected = document.querySelector(`.pattern-option[data-pattern="${patternName}"]`);
+            if (selected) selected.classList.add('selected');
+            document.getElementById('activityTypePattern').value = patternName;
+            updateActivityPreview();
+        }
+
+        // Aggiorna anteprima
+        function updateActivityPreview() {
+            const name = document.getElementById('activityTypeName').value.trim() || 'Nome Attività';
+            const colorVariant = parseFloat(document.getElementById('activityTypeColor').value);
+            const pattern = document.getElementById('activityTypePattern').value;
+            const previewElement = document.getElementById('activityPreview');
+            const previewName = document.getElementById('previewName');
+
+            previewName.textContent = name;
+
+            // Calcola colore
+            let r = 255, g = 255, b = 255; // bianco base
+            if (colorVariant < 0) {
+                r += r * colorVariant;
+                g += g * colorVariant;
+                b += b * colorVariant;
+            }
+
+            const color = `rgb(${Math.round(r)}, ${Math.round(g)}, ${Math.round(b)})`;
+            const lightColor = `rgb(${Math.min(255, Math.round(r + 40))}, ${Math.min(255, Math.round(g + 40))}, ${Math.min(255, Math.round(b + 40))})`;
+
+            previewElement.style.backgroundColor = color;
+            previewElement.style.backgroundImage = 'none';
+            previewElement.style.backgroundSize = 'auto';
+
+            if (pattern === 'stripes') {
+                previewElement.style.backgroundImage = `repeating-linear-gradient(45deg, ${color}, ${color} 5px, ${lightColor} 5px, ${lightColor} 10px)`;
+            } else if (pattern === 'dots') {
+                previewElement.style.backgroundImage = `radial-gradient(circle, ${lightColor} 2px, transparent 2px)`;
+                previewElement.style.backgroundSize = '10px 10px';
+            }
+        }
+
+        // Aggiorna valore colore
+        document.getElementById('activityTypeColor')?.addEventListener('input', () => {
+            const value = parseFloat(document.getElementById('activityTypeColor').value);
+            document.getElementById('colorValue').textContent = value.toFixed(1);
+            updateActivityPreview();
+        });
+
+        document.getElementById('activityTypeName')?.addEventListener('input', updateActivityPreview);
+
+        // Gestione tempo di inattività
+        window.saveIdleThreshold = function() {
+            const threshold = document.getElementById('idleThresholdSetting').value;
+            if (threshold && threshold > 0) {
+                localStorage.setItem('idleThreshold', threshold);
+                showNotification('Tempo di inattività salvato!', 'success');
+            } else {
+                showNotification('Inserisci un valore valido', 'error');
+            }
+        }
+
+        function loadIdleThreshold() {
+            const saved = localStorage.getItem('idleThreshold');
+            if (saved) {
+                document.getElementById('idleThresholdSetting').value = saved;
+            }
+        }
+
+        // Export data
+        window.exportData = async function() {
+            try {
+                const data = await ExportData();
+                const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `prenditempo_backup_${new Date().toISOString().split('T')[0]}.json`;
+                a.click();
+                URL.revokeObjectURL(url);
+                showNotification('Dati esportati!', 'success');
+            } catch (error) {
+                console.error('Errore export:', error);
+                showNotification('Errore export: ' + error, 'error');
+            }
+        }
+
+        // Import data
+        window.importData = async function(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            try {
+                const text = await file.text();
+                const data = JSON.parse(text);
+
+                if (!confirm('Vuoi importare questi dati?\n\nATTENZIONE: I dati esistenti verranno sostituiti!')) {
+                    return;
+                }
+
+                await ImportData(data);
+                showNotification('Dati importati con successo!', 'success');
+                await loadActivityTypes();
+            } catch (error) {
+                console.error('Errore import:', error);
+                showNotification('Errore import: ' + error, 'error');
+            }
+
+            event.target.value = '';
+        }
+
+        function showNotification(message, type = 'success') {
+            const notification = document.getElementById('notification');
+            const notificationText = document.getElementById('notificationText');
+            notificationText.textContent = message;
+            notification.className = `notification ${type} show`;
+            setTimeout(() => notification.classList.remove('show'), 3000);
+        }
+
+        // Funzione per attendere che il runtime Wails sia pronto
+        function waitForWailsRuntime(callback, maxAttempts = 50) {
+            let attempts = 0;
+            const check = () => {
+                attempts++;
+                if (window.go && window.go.main && window.go.main.App) {
+                    callback();
+                } else if (attempts < maxAttempts) {
+                    setTimeout(check, 100);
+                } else {
+                    console.error('Wails runtime non disponibile dopo ' + maxAttempts + ' tentativi');
+                    showNotification('Errore: Runtime non disponibile. Ricarica la pagina.', 'error');
+                }
+            };
+            check();
+        }
+
+        // Inizializzazione
+        document.addEventListener('DOMContentLoaded', () => {
+            waitForWailsRuntime(() => {
+                loadActivityTypes();
+                loadIdleThreshold();
+            });
+        });
+    </script>
+</body>
+</html>

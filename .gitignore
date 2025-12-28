@@ -10,10 +10,18 @@
 
 # Build output
 dist/
+build/bin/
+
+# Wails
+frontend/node_modules/
+frontend/dist/
+frontend/wailsjs/
+frontend/src/wailsjs/
 
 # IDE
 .idea/
 .vscode/
+.claude/
 *.swp
 *.swo
 

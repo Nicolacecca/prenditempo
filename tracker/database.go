@@ -891,7 +891,7 @@ func GeneraReportChiusura(db *sql.DB, projectID int) (map[string]interface{}, er
 
 	// Calcola date di inizio e fine
 	var startDate, endDate string
-	datesSQL := `SELECT MIN(timestamp), MAX(timestamp) FROM sessions WHERE project_id = ?`
+	datesSQL := `SELECT COALESCE(MIN(timestamp), ''), COALESCE(MAX(timestamp), '') FROM sessions WHERE project_id = ?`
 	err = db.QueryRow(datesSQL, projectID).Scan(&startDate, &endDate)
 	if err != nil {
 		return nil, fmt.Errorf("errore calcolo date: %v", err)
@@ -1056,10 +1056,11 @@ type ActivityType struct {
 
 // CaricaTipiAttivita carica tutti i tipi di attività
 func CaricaTipiAttivita(db *sql.DB) ([]ActivityType, error) {
-	query := `SELECT id, name, color_variant, COALESCE(pattern, 'solid'), display_order, created_at FROM activity_types ORDER BY display_order ASC`
+	query := `SELECT id, name, color_variant, COALESCE(pattern, 'solid'), display_order, COALESCE(created_at, '') FROM activity_types ORDER BY display_order ASC`
 
 	rows, err := db.Query(query)
 	if err != nil {
+		fmt.Printf("[DB] Errore query tipi attività: %v\n", err)
 		return nil, fmt.Errorf("errore query tipi attività: %v", err)
 	}
 	defer rows.Close()
@@ -1068,29 +1069,35 @@ func CaricaTipiAttivita(db *sql.DB) ([]ActivityType, error) {
 	for rows.Next() {
 		var t ActivityType
 		if err := rows.Scan(&t.ID, &t.Name, &t.ColorVariant, &t.Pattern, &t.DisplayOrder, &t.CreatedAt); err != nil {
+			fmt.Printf("[DB] Errore scan tipo attività: %v\n", err)
 			return nil, err
 		}
 		types = append(types, t)
 	}
 
+	fmt.Printf("[DB] Caricati %d tipi di attività\n", len(types))
 	return types, nil
 }
 
 // CreaTipoAttivita crea un nuovo tipo di attività
 func CreaTipoAttivita(db *sql.DB, name string, colorVariant float64, pattern string, displayOrder int) (int64, error) {
+	fmt.Printf("[DB] Tentativo creazione tipo attività: name=%s, color=%.2f, pattern=%s, order=%d\n", name, colorVariant, pattern, displayOrder)
+
 	insertSQL := `INSERT INTO activity_types (name, color_variant, pattern, display_order) VALUES (?, ?, ?, ?)`
 
 	result, err := db.Exec(insertSQL, name, colorVariant, pattern, displayOrder)
 	if err != nil {
+		fmt.Printf("[DB] ERRORE creazione tipo attività: %v\n", err)
 		return 0, fmt.Errorf("errore creazione tipo attività: %v", err)
 	}
 
 	id, err := result.LastInsertId()
 	if err != nil {
+		fmt.Printf("[DB] ERRORE recupero ID: %v\n", err)
 		return 0, fmt.Errorf("errore recupero ID: %v", err)
 	}
 
-	fmt.Printf("[DB] Tipo attività creato: %s (ID %d)\n", name, id)
+	fmt.Printf("[DB] Tipo attività creato con successo: %s (ID %d)\n", name, id)
 	return id, nil
 }
 

@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Archivio Progetti - PrendiTempo</title>
+    <link rel="stylesheet" href="src/style.css">
+</head>
+<body>
+    <!-- Header -->
+    <div class="header">
+        <div class="header-content">
+            <div class="logo">PrendiTempo</div>
+            <nav class="nav">
+                <a href="index.html" class="nav-link">Dashboard</a>
+                <a href="archive.html" class="nav-link active">Archivio</a>
+                <a href="settings.html" class="nav-link">Impostazioni</a>
+            </nav>
+        </div>
+    </div>
+
+    <div class="container">
+        <h1>Archivio Progetti</h1>
+        <p class="subtitle" style="color: #999999; margin-bottom: 20px;">Progetti chiusi e archiviati</p>
+
+        <div class="card">
+            <h2>Progetti Archiviati</h2>
+            <div id="archivedProjectsList">
+                <p style="color: #6b7280;">Caricamento progetti archiviati...</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="notification" id="notification">
+        <p id="notificationText"></p>
+    </div>
+
+    <!-- Modal Report -->
+    <div class="modal" id="reportModal">
+        <div class="modal-content" style="max-width: 700px;">
+            <div class="modal-header">
+                <h2>Report Progetto</h2>
+                <p style="color: #6b7280;">Dettagli del progetto archiviato</p>
+            </div>
+            <div class="modal-body" id="reportContent" style="max-height: 500px; overflow-y: auto;"></div>
+            <div class="modal-buttons">
+                <button class="btn" style="background: #6b7280;" onclick="closeReportModal()">Chiudi</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="src/wailsjs/runtime/runtime.js"></script>
+    <script type="module">
+        import { GetArchivedProjects, ReactivateProject, DeleteProject, GetProjectReport } from './src/wailsjs/go/main/App.js';
+
+        async function loadArchivedProjects() {
+            try {
+                const projects = await GetArchivedProjects();
+                displayArchivedProjects(projects || []);
+            } catch (error) {
+                console.error('Errore caricamento progetti archiviati:', error);
+                showNotification('Errore caricamento', 'error');
+            }
+        }
+
+        function displayArchivedProjects(projects) {
+            const container = document.getElementById('archivedProjectsList');
+
+            if (!projects || projects.length === 0) {
+                container.innerHTML = '<p style="color: #6b7280;">Nessun progetto archiviato</p>';
+                return;
+            }
+
+            container.innerHTML = projects.map(project => `
+                <div class="project-item" style="background: #1a1a1a; padding: 15px; border-radius: 16px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; border: 1px solid #3a3a3a;">
+                    <div>
+                        <h3 style="color: #ffffff; font-size: 1.1em;">${project.name}</h3>
+                        ${project.description ? `<p style="color: #999999; font-size: 0.9em; margin-top: 5px;">${project.description}</p>` : ''}
+                        ${project.closed_at ? `<p style="color: #666; font-size: 0.8em; margin-top: 5px;">Chiuso il: ${new Date(project.closed_at).toLocaleDateString('it-IT')}</p>` : ''}
+                    </div>
+                    <div style="display: flex; gap: 10px;">
+                        <button class="btn" style="padding: 8px 16px; margin: 0;" onclick="viewReport(${project.id})">Report</button>
+                        <button class="btn btn-success" style="padding: 8px 16px; margin: 0;" onclick="reactivateProject(${project.id}, '${project.name.replace(/'/g, "\\'")}')">Riattiva</button>
+                        <button class="btn" style="padding: 8px 16px; margin: 0; background: #ef4444; color: white;" onclick="deleteProject(${project.id}, '${project.name.replace(/'/g, "\\'")}')">Elimina</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        window.viewReport = async function(projectID) {
+            try {
+                const report = await GetProjectReport(projectID);
+                showReportModal(report);
+            } catch (error) {
+                console.error('Errore caricamento report:', error);
+                showNotification('Errore caricamento report', 'error');
+            }
+        }
+
+        window.reactivateProject = async function(projectID, projectName) {
+            if (!confirm(`Vuoi riattivare il progetto "${projectName}"?`)) return;
+
+            try {
+                await ReactivateProject(projectID);
+                showNotification('Progetto riattivato!', 'success');
+                await loadArchivedProjects();
+            } catch (error) {
+                console.error('Errore riattivazione:', error);
+                showNotification('Errore: ' + error, 'error');
+            }
+        }
+
+        window.deleteProject = async function(projectID, projectName) {
+            if (!confirm(`Vuoi eliminare definitivamente "${projectName}"?\n\nQuesta azione è irreversibile!`)) return;
+
+            try {
+                await DeleteProject(projectID);
+                showNotification('Progetto eliminato!', 'success');
+                await loadArchivedProjects();
+            } catch (error) {
+                console.error('Errore eliminazione:', error);
+                showNotification('Errore: ' + error, 'error');
+            }
+        }
+
+        function showReportModal(report) {
+            const modal = document.getElementById('reportModal');
+            const content = document.getElementById('reportContent');
+
+            content.innerHTML = `
+                <div style="background: #1a1a1a; padding: 20px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #3a3a3a;">
+                    <h3 style="color: #ff6b2b; margin-bottom: 10px;">${report.project_name}</h3>
+                    <p style="color: #999999;">${report.project_description || 'Nessuna descrizione'}</p>
+                </div>
+                <div style="margin-bottom: 20px;">
+                    <h3 style="color: #ffffff; margin-bottom: 10px;">Totale Ore</h3>
+                    <p style="font-size: 2em; font-weight: bold; color: #ff6b2b;">${report.total_hours ? report.total_hours.toFixed(2) : 0} ore</p>
+                </div>
+            `;
+
+            modal.classList.add('show');
+        }
+
+        window.closeReportModal = function() {
+            document.getElementById('reportModal').classList.remove('show');
+        }
+
+        function showNotification(message, type = 'success') {
+            const notification = document.getElementById('notification');
+            const notificationText = document.getElementById('notificationText');
+            notificationText.textContent = message;
+            notification.className = `notification ${type} show`;
+            setTimeout(() => notification.classList.remove('show'), 3000);
+        }
+
+        // Inizializzazione
+        document.addEventListener('DOMContentLoaded', loadArchivedProjects);
+    </script>
+</body>
+</html>

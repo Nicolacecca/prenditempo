@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PrendiTempo</title>
+    <link rel="stylesheet" href="src/style.css">
+    <style>
+        /* Pattern Option Styles */
+        .pattern-option {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            padding: 12px;
+            border: 1px solid #4a4a4a;
+            border-radius: 16px;
+            cursor: pointer;
+            transition: all 0.2s;
+            background: #1a1a1a;
+        }
+
+        .pattern-option:hover {
+            border-color: #ff6b2b;
+            background: #2a2a2a;
+        }
+
+        .pattern-option.selected {
+            border-color: #ff6b2b;
+            background: #2a2a2a;
+            box-shadow: 0 0 0 3px rgba(255, 107, 43, 0.2);
+        }
+
+        .pattern-option span {
+            font-size: 0.8em;
+            color: #999999;
+            font-weight: 500;
+        }
+
+        .pattern-preview {
+            width: 50px;
+            height: 30px;
+            border-radius: 4px;
+        }
+
+        .pattern-solid { background: #ff6b2b; }
+        .pattern-stripes { background: repeating-linear-gradient(45deg, #ff6b2b, #ff6b2b 5px, #ff8b5a 5px, #ff8b5a 10px); }
+        .pattern-dots { background-color: #ff6b2b; background-image: radial-gradient(circle, #ffffff 2px, transparent 2px); background-size: 10px 10px; }
+
+        /* Range input styling */
+        input[type="range"] {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 8px;
+            border-radius: 4px;
+            background: #3a3a3a;
+            outline: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #ff6b2b;
+            cursor: pointer;
+        }
+
+        /* Activity type item for drag and drop */
+        .activity-type-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px;
+            background: #1a1a1a;
+            border-radius: 16px;
+            border-left: 4px solid #ff6b2b;
+            cursor: move;
+            transition: all 0.2s;
+            border: 1px solid #3a3a3a;
+            margin-bottom: 10px;
+        }
+
+        .activity-type-item:hover {
+            background: #2a2a2a;
+        }
+
+        .activity-type-item.dragging {
+            opacity: 0.5;
+        }
+
+        .drag-handle {
+            width: 20px;
+            height: 30px;
+            display: flex;
+            flex-wrap: wrap;
+            align-content: center;
+            justify-content: center;
+            gap: 4px;
+            cursor: grab;
+        }
+
+        .drag-handle::before {
+            content: '';
+            width: 4px;
+            height: 4px;
+            background: #666666;
+            border-radius: 50%;
+            box-shadow:
+                8px 0 0 #666666,
+                0 8px 0 #666666,
+                8px 8px 0 #666666,
+                0 16px 0 #666666,
+                8px 16px 0 #666666;
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <div class="header">
+        <div class="header-content">
+            <div class="logo">PrendiTempo</div>
+            <nav class="nav">
+                <a href="#" class="nav-link active" id="navDashboard" onclick="showSection('dashboard'); return false;">Dashboard</a>
+                <a href="#" class="nav-link" id="navArchive" onclick="showSection('archive'); return false;">Archivio</a>
+                <a href="#" class="nav-link" id="navSettings" onclick="showSection('settings'); return false;">Impostazioni</a>
+            </nav>
+        </div>
+    </div>
+
+    <!-- SEZIONE DASHBOARD -->
+    <div class="container" id="dashboardSection">
+        <!-- Status Bar -->
+        <div style="background: #242424; border-radius: 20px; padding: 20px; margin-bottom: 20px; border: 1px solid #3a3a3a;">
+            <div class="status-bar">
+                <div class="status-indicator" id="statusIndicator"></div>
+                <span id="statusText">Pronto</span>
+            </div>
+        </div>
+
+        <div class="grid">
+            <!-- Progetti -->
+            <div class="card">
+                <h2>Progetti</h2>
+                <div class="project-list" id="projectList">
+                    <p style="color: #6b7280;">Caricamento progetti...</p>
+                </div>
+                <button class="btn btn-success" onclick="openCreateProjectModal()">+ Crea Nuovo Progetto</button>
+            </div>
+
+            <!-- Tracking -->
+            <div class="card">
+                <h2>Tracking</h2>
+                <select id="projectSelect">
+                    <option value="">Seleziona progetto...</option>
+                </select>
+                <select id="activityTypeSelect">
+                    <option value="">Tipo attività (opzionale)...</option>
+                </select>
+                <button class="btn btn-success" id="trackingBtn" onclick="toggleTracking()">Avvia Tracking</button>
+
+                <div id="currentStats" style="margin-top: 20px; display: none;">
+                    <h3 style="margin-bottom: 10px; color: #ffffff;">Sessione Corrente:</h3>
+                    <div class="stats-grid" id="liveStats"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Timeline -->
+        <div class="timeline-container">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h2 style="margin: 0;">Timeline Progetti</h2>
+                <div style="display: flex; gap: 10px;">
+                    <button class="btn" style="width: auto; padding: 10px 20px; margin: 0;" onclick="createNewSession()">+ Nuova Sessione</button>
+                    <button class="btn btn-success" style="width: auto; padding: 10px 20px; margin: 0;" onclick="openNoteModal()">Aggiungi Nota</button>
+                </div>
+            </div>
+            <div class="timeline-filters">
+                <label style="color: #ffffff;">Da:</label>
+                <input type="date" id="timelineStartDate">
+                <label style="color: #ffffff;">A:</label>
+                <input type="date" id="timelineEndDate">
+                <button class="btn" style="width: auto; padding: 10px 20px; margin: 0;" onclick="loadTimeline()">Carica Timeline</button>
+                <button class="btn" style="width: auto; padding: 20px 20px; margin: 0;" onclick="setToday()">Oggi</button>
+                <button class="btn" style="width: auto; padding: 10px 20px; margin: 0;" onclick="setThisWeek()">Questa Settimana</button>
+            </div>
+            <div id="timelineContent">
+                <p style="color: #6b7280;">Seleziona un periodo per visualizzare la timeline</p>
+            </div>
+        </div>
+
+        <!-- Elenco Note -->
+        <div class="timeline-container" style="margin-top: 20px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h2 style="margin: 0;">Elenco Note</h2>
+            </div>
+            <div style="margin-bottom: 15px; display: flex; gap: 10px; flex-wrap: wrap;">
+                <select id="notesFilterProject" style="padding: 10px; border: 1px solid #4a4a4a; border-radius: 6px; font-size: 0.95em; cursor: pointer; background: #1a1a1a; color: #ffffff;">
+                    <option value="">Tutti i progetti</option>
+                </select>
+                <input type="text" id="notesSearchText" placeholder="Cerca nelle note..." style="flex: 1; min-width: 200px; padding: 10px; border: 1px solid #4a4a4a; border-radius: 6px; font-size: 0.95em; background: #1a1a1a; color: #ffffff;">
+                <button class="btn" style="width: auto; padding: 10px 20px; margin: 0;" onclick="loadAllNotes()">Cerca</button>
+            </div>
+            <div id="notesListContent">
+                <p style="color: #6b7280;">Caricamento note...</p>
+            </div>
+        </div>
+
+        <!-- Statistiche -->
+        <div class="card" style="margin-top: 20px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h2 style="margin: 0;">Statistiche</h2>
+                <div style="display: flex; gap: 10px;">
+                    <button class="btn" id="statsToday" style="width: auto; padding: 10px 20px; margin: 0; background: #ff6b2b; color: white;" onclick="showTodayStats()">Oggi</button>
+                    <button class="btn" id="statsWeek" style="width: auto; padding: 10px 20px; margin: 0;" onclick="showWeekStats()">Settimana</button>
+                    <button class="btn" id="statsMonth" style="width: auto; padding: 10px 20px; margin: 0;" onclick="showMonthStats()">Mese</button>
+                </div>
+            </div>
+            <div class="stats-grid" id="todayStats">
+                <p style="color: #6b7280;">Nessuna statistica disponibile</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- SEZIONE ARCHIVIO (nascosta di default) -->
+    <div class="container" id="archiveSection" style="display: none;">
+        <h1>Archivio Progetti</h1>
+        <p class="subtitle" style="color: #999999; margin-bottom: 20px;">Progetti chiusi e archiviati</p>
+
+        <div class="card" style="margin-bottom: 20px;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <h2 style="margin: 0;">Importa Progetto</h2>
+                    <p style="color: #999999; margin: 5px 0 0 0; font-size: 0.9em;">Ripristina un progetto da un file JSON esportato precedentemente</p>
+                </div>
+                <button class="btn btn-success" style="width: auto; padding: 12px 24px; margin: 0;" onclick="importProjectFromJSON()">
+                    Importa da JSON
+                </button>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Progetti Archiviati</h2>
+            <div id="archivedProjectsList">
+                <p style="color: #6b7280;">Caricamento progetti archiviati...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- SEZIONE IMPOSTAZIONI (nascosta di default) -->
+    <div class="container" id="settingsSection" style="display: none;">
+        <h1>Impostazioni</h1>
+        <p class="subtitle" style="color: #999999; margin-bottom: 20px;">Configura PrendiTempo</p>
+
+        <!-- Tipi di Attività -->
+        <div class="card" style="margin-bottom: 20px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h2 style="margin: 0;">Tipi di Attività</h2>
+                <button class="btn btn-success" style="width: auto; padding: 10px 20px; margin: 0;" onclick="openActivityTypeModal()">+ Nuovo Tipo</button>
+            </div>
+            <p style="color: #999999; margin-bottom: 15px;">Trascina per riordinare i tipi di attività. Ogni tipo può avere un colore e pattern diverso.</p>
+
+            <div id="activityTypesList">
+                <p style="color: #6b7280;">Caricamento tipi attività...</p>
+            </div>
+        </div>
+
+        <!-- Tempo di Inattività -->
+        <div class="card" style="margin-bottom: 20px;">
+            <h2>Tempo di Inattività</h2>
+            <p style="color: #999999; margin-bottom: 15px;">Dopo quanti minuti di inattività il sistema deve chiedere dove attribuire il tempo</p>
+
+            <div style="display: flex; gap: 10px; align-items: center;">
+                <input type="number" id="idleThresholdSetting" placeholder="5" value="5" min="1" style="width: 100px;">
+                <span style="color: #ffffff;">minuti</span>
+                <button class="btn btn-success" style="width: auto; padding: 10px 20px; margin: 0;" onclick="saveIdleThreshold()">Salva</button>
+            </div>
+        </div>
+
+        <!-- Avvio Automatico -->
+        <div class="card" style="margin-bottom: 20px;">
+            <h2>Avvio Automatico</h2>
+            <p style="color: #999999; margin-bottom: 15px;">Avvia PrendiTempo automaticamente all'accensione del PC</p>
+
+            <div style="display: flex; align-items: center; gap: 15px;">
+                <label class="toggle-switch">
+                    <input type="checkbox" id="autostartToggle" onchange="toggleAutostart()">
+                    <span class="toggle-slider"></span>
+                </label>
+                <span id="autostartStatus" style="color: #999999;">Caricamento...</span>
+            </div>
+        </div>
+
+        <!-- Export/Import -->
+        <div class="card">
+            <h2>Backup Dati</h2>
+            <p style="color: #999999; margin-bottom: 15px;">Esporta o importa i tuoi dati</p>
+
+            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                <button class="btn" style="background: #ffffff; color: #1a1a1a;" onclick="exportData()">Esporta Dati</button>
+                <input type="file" id="importFile" accept=".json" style="display: none;" onchange="importDataFromFile(event)">
+                <button class="btn btn-success" onclick="document.getElementById('importFile').click()">Importa Dati</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Tipo Attività -->
+    <div class="modal" id="activityTypeModal">
+        <div class="modal-content" style="max-width: 700px;">
+            <div class="modal-header">
+                <h2 id="activityTypeModalTitle">Nuovo Tipo di Attività</h2>
+                <p style="color: #6b7280;">Configura un tipo di attività personalizzato</p>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="activityTypeId" value="">
+                <input type="hidden" id="activityTypePattern" value="solid">
+                <input type="hidden" id="activityTypeOrder" value="1">
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px;">
+                    <!-- Colonna Sinistra - Configurazione -->
+                    <div>
+                        <label style="color: #ffffff; font-weight: 600; margin-bottom: 10px; display: block;">
+                            Nome <span style="color: #ef4444;">*</span>
+                        </label>
+                        <input type="text" id="activityTypeName" placeholder="es. SVILUPPO, TESTING">
+
+                        <label style="color: #ffffff; font-weight: 600; margin-bottom: 10px; margin-top: 20px; display: block;">
+                            Tonalità Colore
+                        </label>
+                        <p style="color: #999999; font-size: 0.85em; margin-bottom: 10px;">
+                            Scegli quanto chiaro o scuro deve essere rispetto al colore base
+                        </p>
+                        <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 20px;">
+                            <span style="font-size: 0.9em; color: #999999;">Scuro</span>
+                            <input type="range" id="activityTypeColor" min="-1" max="1" step="0.1" value="0">
+                            <span style="font-size: 0.9em; color: #999999;">Chiaro</span>
+                        </div>
+                        <div style="text-align: center; margin-bottom: 20px;">
+                            <span style="background: #1a1a1a; padding: 5px 15px; border-radius: 24px; font-weight: 600; color: #ffffff; border: 1px solid #3a3a3a;">
+                                Valore: <span id="colorValue">0.0</span>
+                            </span>
+                        </div>
+
+                        <label style="color: #ffffff; font-weight: 600; margin-bottom: 10px; display: block;">
+                            Pattern Visivo
+                        </label>
+                        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 15px;">
+                            <div class="pattern-option selected" data-pattern="solid" onclick="selectPattern('solid')">
+                                <div class="pattern-preview pattern-solid"></div>
+                                <span>Solido</span>
+                            </div>
+                            <div class="pattern-option" data-pattern="stripes" onclick="selectPattern('stripes')">
+                                <div class="pattern-preview pattern-stripes"></div>
+                                <span>Strisce</span>
+                            </div>
+                            <div class="pattern-option" data-pattern="dots" onclick="selectPattern('dots')">
+                                <div class="pattern-preview pattern-dots"></div>
+                                <span>Puntini</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Colonna Destra - Anteprima Live -->
+                    <div>
+                        <label style="color: #ffffff; font-weight: 600; margin-bottom: 10px; display: block;">
+                            Anteprima
+                        </label>
+                        <div style="background: #1a1a1a; border: 1px solid #3a3a3a; border-radius: 16px; padding: 20px;">
+                            <p style="color: #999999; font-size: 0.9em; margin-bottom: 15px; text-align: center;">
+                                Come apparirà nella timeline
+                            </p>
+                            <div style="background: #242424; border-radius: 16px; padding: 15px; border: 1px solid #3a3a3a;">
+                                <div style="font-size: 0.85em; color: #999999; margin-bottom: 10px; font-weight: 600;">
+                                    Timeline Preview
+                                </div>
+                                <div style="height: 40px; background: #000000; border-radius: 8px; overflow: hidden; position: relative;">
+                                    <div id="activityPreview" style="height: 100%; width: 60%; position: absolute; left: 20%; background: #ffffff;"></div>
+                                </div>
+                                <div style="margin-top: 15px; text-align: center;">
+                                    <div style="display: inline-block; padding: 8px 16px; border-radius: 24px; background: #1a1a1a; border: 1px solid #3a3a3a;">
+                                        <span style="font-weight: 600; color: #ffffff;" id="previewName">Nome Attività</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-buttons">
+                <button class="btn" style="background: #6b7280;" onclick="closeActivityTypeModal()">Annulla</button>
+                <button class="btn btn-success" onclick="saveActivityType()">Salva</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="notification" id="notification">
+        <p id="notificationText"></p>
+    </div>
+
+    <!-- Modals -->
+    <div class="modal" id="createProjectModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Nuovo Progetto</h2>
+                <p style="color: #6b7280;">Inserisci i dettagli del progetto</p>
+            </div>
+            <div class="modal-body">
+                <label style="color: #ffffff; font-weight: 600; margin-bottom: 10px; display: block;">Nome Progetto:</label>
+                <input type="text" id="modalProjectName" placeholder="Nome progetto">
+                <label style="color: #ffffff; font-weight: 600; margin-bottom: 10px; margin-top: 15px; display: block;">Descrizione (opzionale):</label>
+                <textarea id="modalProjectDesc" placeholder="Descrizione del progetto..."></textarea>
+            </div>
+            <div class="modal-buttons">
+                <button class="btn" style="background: #6b7280;" onclick="closeCreateProjectModal()">Annulla</button>
+                <button class="btn btn-success" onclick="createProject()">Crea Progetto</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="noteModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Aggiungi Nota</h2>
+                <p style="color: #6b7280;">Inserisci una nota relativa a un progetto</p>
+            </div>
+            <div class="modal-body">
+                <label style="color: #ffffff; font-weight: 600; margin-bottom: 10px; display: block;">Progetto:</label>
+                <select id="noteProjectSelect">
+                    <option value="">Seleziona progetto...</option>
+                </select>
+                <label style="color: #ffffff; font-weight: 600; margin-bottom: 10px; margin-top: 15px; display: block;">Nota:</label>
+                <textarea id="noteText" placeholder="Scrivi qui la tua nota..."></textarea>
+            </div>
+            <div class="modal-buttons">
+                <button class="btn" style="background: #6b7280;" onclick="closeNoteModal()">Annulla</button>
+                <button class="btn btn-success" onclick="saveNote()">Salva Nota</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="editNoteModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Modifica Nota</h2>
+                <p style="color: #6b7280;" id="editNoteTimestamp"></p>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="editNoteId">
+                <label style="color: #ffffff; font-weight: 600; margin-bottom: 10px; display: block;">Testo della nota:</label>
+                <textarea id="editNoteText" placeholder="Scrivi qui la tua nota..." style="min-height: 150px;"></textarea>
+            </div>
+            <div class="modal-buttons">
+                <button class="btn" style="background: #ef4444;" onclick="deleteNoteFromModal()">Elimina</button>
+                <button class="btn" style="background: #6b7280;" onclick="closeEditNoteModal()">Annulla</button>
+                <button class="btn btn-success" onclick="updateNote()">Salva Modifiche</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="createSessionModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Nuova Sessione Manuale</h2>
+                <p style="color: #6b7280;">Inserisci i dati della sessione</p>
+            </div>
+            <div class="modal-body">
+                <label style="color: #ffffff; font-weight: 600; margin-bottom: 10px; display: block;">Progetto:</label>
+                <div id="projectRadioList" style="margin-bottom: 15px; max-height: 150px; overflow-y: auto; border: 1px solid #4a4a4a; border-radius: 6px; padding: 10px;">
+                    <p style="color: #6b7280;">Caricamento progetti...</p>
+                </div>
+                <label style="color: #ffffff; font-weight: 600; margin-bottom: 8px; display: block; font-size: 0.95em;">Durata (minuti):</label>
+                <input type="number" id="sessionDuration" placeholder="30" value="30" min="1" style="width: 100%; padding: 10px; border: 1px solid #4a4a4a; border-radius: 6px; margin-bottom: 15px; background: #1a1a1a; color: #ffffff;">
+                <label style="color: #ffffff; font-weight: 600; margin-bottom: 8px; display: block; font-size: 0.95em;">Data:</label>
+                <input type="date" id="sessionDate" style="width: 100%; padding: 10px; border: 1px solid #4a4a4a; border-radius: 6px; font-size: 1em; cursor: pointer; margin-bottom: 15px; background: #1a1a1a; color: #ffffff;">
+                <label style="color: #ffffff; font-weight: 600; margin-bottom: 8px; display: block; font-size: 0.95em;">Ora:</label>
+                <div style="display: flex; gap: 10px; margin-bottom: 15px; align-items: center;">
+                    <select id="sessionHour" style="flex: 1; padding: 10px; border: 1px solid #4a4a4a; border-radius: 6px; font-size: 1em; cursor: pointer; background: #1a1a1a; color: #ffffff;"></select>
+                    <span style="font-size: 1.2em; font-weight: bold; color: #999999;">:</span>
+                    <select id="sessionMinute" style="flex: 1; padding: 10px; border: 1px solid #4a4a4a; border-radius: 6px; font-size: 1em; cursor: pointer; background: #1a1a1a; color: #ffffff;"></select>
+                </div>
+                <label style="color: #ffffff; font-weight: 600; margin-bottom: 8px; display: block; font-size: 0.95em;">Tipo Attività (opzionale):</label>
+                <select id="sessionActivityType" style="width: 100%; padding: 10px; border: 1px solid #4a4a4a; border-radius: 6px; background: #1a1a1a; color: #ffffff;">
+                    <option value="">Nessuno</option>
+                </select>
+            </div>
+            <div class="modal-buttons">
+                <button class="btn" style="background: #6b7280;" onclick="closeCreateSessionModal()">Annulla</button>
+                <button class="btn btn-success" onclick="saveNewSession()">Crea Sessione</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="reportModal">
+        <div class="modal-content" style="max-width: 700px;">
+            <div class="modal-header">
+                <h2>Report di Chiusura Progetto</h2>
+                <p style="color: #6b7280;">Riepilogo delle attività del progetto</p>
+            </div>
+            <div class="modal-body" id="reportContent" style="max-height: 500px; overflow-y: auto;"></div>
+            <div class="modal-buttons">
+                <button class="btn" style="background: #6b7280;" onclick="closeReportModal()">Chiudi</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal per attribuzione tempo idle -->
+    <div class="modal" id="idleModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Periodo di Inattività Rilevato</h2>
+                <p style="color: #6b7280;">È stato rilevato un periodo di inattività. A quale progetto vuoi attribuire questo tempo?</p>
+            </div>
+            <div class="modal-body">
+                <div style="background: #1a1a1a; padding: 15px; border-radius: 16px; margin-bottom: 20px; border: 1px solid #3a3a3a;">
+                    <p style="margin: 5px 0; color: #999999;"><strong style="color: #ff6b2b;">Durata:</strong> <span id="idleDuration"></span></p>
+                    <p style="margin: 5px 0; color: #999999;"><strong style="color: #ff6b2b;">Periodo:</strong> <span id="idlePeriod"></span></p>
+                </div>
+                <label style="color: #ffffff; font-weight: 600; margin-bottom: 10px; display: block;">Seleziona progetto o pausa:</label>
+                <select id="idleProjectSelect">
+                    <option value="">Seleziona...</option>
+                </select>
+            </div>
+            <div class="modal-buttons">
+                <button class="btn" style="background: #6b7280;" onclick="attributeIdleAsBreak()">Era una Pausa</button>
+                <button class="btn btn-success" onclick="attributeIdleToProject()">Conferma Attribuzione</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="src/wailsjs/runtime/runtime.js"></script>
+    <script src="src/app.js" type="module"></script>
+</body>
+</html>
