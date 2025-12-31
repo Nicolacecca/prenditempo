@@ -33,7 +33,8 @@ func init() {
 	// Crea file di log nella directory dell'eseguibile
 	exeDir := getExeDir()
 	logPath := filepath.Join(exeDir, "timetracker.log")
-	logFile, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+	// Usa permessi 0600 (solo proprietario può leggere/scrivere) per sicurezza
+	logFile, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0600)
 	if err == nil {
 		log.SetOutput(logFile)
 	}

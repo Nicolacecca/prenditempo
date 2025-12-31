@@ -417,6 +417,26 @@
         </div>
     </div>
 
+    <div class="modal" id="editProjectModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Modifica Progetto</h2>
+                <p style="color: #6b7280;">Modifica i dettagli del progetto</p>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="editProjectId">
+                <label style="color: #ffffff; font-weight: 600; margin-bottom: 10px; display: block;">Nome Progetto:</label>
+                <input type="text" id="editProjectName" placeholder="Nome progetto">
+                <label style="color: #ffffff; font-weight: 600; margin-bottom: 10px; margin-top: 15px; display: block;">Descrizione (opzionale):</label>
+                <textarea id="editProjectDesc" placeholder="Descrizione del progetto..."></textarea>
+            </div>
+            <div class="modal-buttons">
+                <button class="btn" style="background: #6b7280;" onclick="closeEditProjectModal()">Annulla</button>
+                <button class="btn btn-success" onclick="updateProject()">Salva Modifiche</button>
+            </div>
+        </div>
+    </div>
+
     <div class="modal" id="noteModal">
         <div class="modal-content">
             <div class="modal-header">
@@ -523,6 +543,115 @@
             <div class="modal-buttons">
                 <button class="btn" style="background: #6b7280;" onclick="attributeIdleAsBreak()">Era una Pausa</button>
                 <button class="btn btn-success" onclick="attributeIdleToProject()">Conferma Attribuzione</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Modifica Tipo Attività Sessione -->
+    <div class="modal" id="editSessionActivityModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Modifica Tipo Attività</h2>
+                <p style="color: #6b7280;" id="editSessionActivityProject"></p>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="editSessionActivityId">
+                <div style="background: #1a1a1a; padding: 15px; border-radius: 16px; margin-bottom: 20px; border: 1px solid #3a3a3a;">
+                    <p style="margin: 5px 0; color: #999999;"><strong style="color: #ff6b2b;">Attuale:</strong> <span id="editSessionActivityCurrent"></span></p>
+                </div>
+                <label style="color: #ffffff; font-weight: 600; margin-bottom: 10px; display: block;">Seleziona nuovo tipo:</label>
+                <select id="editSessionActivitySelect">
+                    <option value="">Nessuno</option>
+                </select>
+            </div>
+            <div class="modal-buttons">
+                <button class="btn" style="background: #6b7280;" onclick="closeEditSessionActivityModal()">Annulla</button>
+                <button class="btn btn-success" onclick="confirmEditSessionActivity()">Conferma</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Modifica Durata Sessione -->
+    <div class="modal" id="editSessionDurationModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Modifica Durata</h2>
+                <p style="color: #6b7280;" id="editSessionDurationProject"></p>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="editSessionDurationId">
+                <div style="background: #1a1a1a; padding: 15px; border-radius: 16px; margin-bottom: 20px; border: 1px solid #3a3a3a;">
+                    <p style="margin: 5px 0; color: #999999;"><strong style="color: #ff6b2b;">Durata attuale:</strong> <span id="editSessionDurationCurrent"></span> minuti</p>
+                </div>
+                <label style="color: #ffffff; font-weight: 600; margin-bottom: 10px; display: block;">Nuova durata (minuti):</label>
+                <input type="number" id="editSessionDurationInput" placeholder="30" min="1" style="width: 100%; padding: 10px; border: 1px solid #4a4a4a; border-radius: 6px; background: #1a1a1a; color: #ffffff;">
+            </div>
+            <div class="modal-buttons">
+                <button class="btn" style="background: #6b7280;" onclick="closeEditSessionDurationModal()">Annulla</button>
+                <button class="btn btn-success" onclick="confirmEditSessionDuration()">Conferma</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Dividi Sessione -->
+    <div class="modal" id="splitSessionModal">
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-header">
+                <h2>Dividi Sessione</h2>
+                <p style="color: #6b7280;" id="splitSessionProject"></p>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="splitSessionId">
+                <input type="hidden" id="splitSessionTotalSeconds">
+                <div style="background: #1a1a1a; padding: 15px; border-radius: 16px; margin-bottom: 20px; border: 1px solid #3a3a3a;">
+                    <p style="margin: 5px 0; color: #999999;"><strong style="color: #ff6b2b;">Durata totale:</strong> <span id="splitSessionTotal"></span> minuti</p>
+                </div>
+
+                <label style="color: #ffffff; font-weight: 600; margin-bottom: 10px; display: block;">Durata prima parte (minuti):</label>
+                <input type="number" id="splitSessionFirstPart" placeholder="15" min="1" style="width: 100%; padding: 10px; border: 1px solid #4a4a4a; border-radius: 6px; margin-bottom: 15px; background: #1a1a1a; color: #ffffff;">
+                <p style="color: #999999; font-size: 0.9em; margin-bottom: 20px;">Seconda parte: <span id="splitSessionSecondPart">--</span> minuti</p>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <div>
+                        <label style="color: #ffffff; font-weight: 600; margin-bottom: 10px; display: block;">Tipo prima parte:</label>
+                        <select id="splitSessionFirstType" style="width: 100%; padding: 10px; border: 1px solid #4a4a4a; border-radius: 6px; background: #1a1a1a; color: #ffffff;">
+                            <option value="">Nessuno</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="color: #ffffff; font-weight: 600; margin-bottom: 10px; display: block;">Tipo seconda parte:</label>
+                        <select id="splitSessionSecondType" style="width: 100%; padding: 10px; border: 1px solid #4a4a4a; border-radius: 6px; background: #1a1a1a; color: #ffffff;">
+                            <option value="">Nessuno</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-buttons">
+                <button class="btn" style="background: #6b7280;" onclick="closeSplitSessionModal()">Annulla</button>
+                <button class="btn btn-success" onclick="confirmSplitSession()">Dividi Sessione</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Conferma Eliminazione -->
+    <div class="modal" id="confirmDeleteModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="confirmDeleteTitle">Conferma Eliminazione</h2>
+                <p style="color: #6b7280;" id="confirmDeleteMessage"></p>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="confirmDeleteId">
+                <input type="hidden" id="confirmDeleteType">
+                <div style="background: #1a1a1a; padding: 15px; border-radius: 16px; border: 1px solid #ef4444;">
+                    <p style="margin: 0; color: #ef4444; text-align: center;">
+                        ⚠️ Questa azione è irreversibile
+                    </p>
+                </div>
+            </div>
+            <div class="modal-buttons">
+                <button class="btn" style="background: #6b7280;" onclick="closeConfirmDeleteModal()">Annulla</button>
+                <button class="btn" style="background: #ef4444;" onclick="confirmDelete()">Elimina</button>
             </div>
         </div>
     </div>

@@ -1,5 +1,5 @@
 // Import Wails bindings
-import { GetProjects, CreateProject, ArchiveProject, GetProjectReport, GetArchivedProjects, ReactivateProject, DeleteProject } from './wailsjs/go/main/App.js';
+import { GetProjects, CreateProject, ArchiveProject, GetProjectReport, GetArchivedProjects, ReactivateProject, DeleteProject, UpdateProject } from './wailsjs/go/main/App.js';
 import { GetSessions, CreateSession, UpdateSessionDuration, UpdateSessionActivityType, DeleteSession, SplitSession } from './wailsjs/go/main/App.js';
 import { GetNotes, GetAllNotes, CreateNote, UpdateNote, DeleteNote } from './wailsjs/go/main/App.js';
 import { GetActivityTypes, CreateActivityType, UpdateActivityType, DeleteActivityType, ReorderActivityTypes } from './wailsjs/go/main/App.js';
@@ -10,12 +10,51 @@ import { ExportData, ImportData } from './wailsjs/go/main/App.js';
 import { SaveReportJSON, SaveReportText, ImportProjectJSON } from './wailsjs/go/main/App.js';
 import { IsAutoStartEnabled, EnableAutoStart, DisableAutoStart } from './wailsjs/go/main/App.js';
 import { SetIdleThreshold, GetIdleThreshold } from './wailsjs/go/main/App.js';
+import { EventsOn } from './wailsjs/runtime/runtime.js';
+
+// === UTILITY FUNCTIONS ===
+
+// Escape HTML to prevent XSS
+function escapeHtml(text) {
+    if (text === null || text === undefined) return '';
+    const div = document.createElement('div');
+    div.textContent = String(text);
+    return div.innerHTML;
+}
+
+// Escape string for use in JavaScript strings (onclick handlers)
+function escapeJs(text) {
+    if (text === null || text === undefined) return '';
+    return String(text)
+        .replace(/\\/g, '\\\\')
+        .replace(/'/g, "\\'")
+        .replace(/"/g, '\\"')
+        .replace(/\n/g, '\\n')
+        .replace(/\r/g, '\\r')
+        .replace(/</g, '\\x3c')
+        .replace(/>/g, '\\x3e');
+}
+
+// Validate and truncate string length
+function validateLength(text, maxLength, fieldName) {
+    if (text && text.length > maxLength) {
+        throw new Error(`${fieldName} non può superare ${maxLength} caratteri`);
+    }
+    return text;
+}
+
+// Constants for validation
+const MAX_PROJECT_NAME_LENGTH = 100;
+const MAX_PROJECT_DESC_LENGTH = 500;
+const MAX_NOTE_LENGTH = 5000;
+const MAX_ACTIVITY_TYPE_LENGTH = 50;
 
 // Variabili globali
 let currentReportProjectId = null;
 let isCurrentlyTracking = false;
 let activityTypes = [];
 let projectsCache = [];
+let statusCheckInProgress = false; // Debounce flag for status check
 
 // Inizializzazione
 document.addEventListener('DOMContentLoaded', async function() {
@@ -28,8 +67,26 @@ document.addEventListener('DOMContentLoaded', async function() {
     await loadAllNotes();
     await populateNotesProjectFilter();
 
-    // Aggiorna stato ogni 5 secondi
-    setInterval(checkTrackingStatus, 5000);
+    // Aggiorna stato ogni 2 secondi (ridotto per mostrare il modale idle più velocemente)
+    setInterval(checkTrackingStatus, 2000);
+
+    // Ascolta evento auto-stop per inattività
+    EventsOn('tracking-auto-stopped', async (data) => {
+        console.log('[EVENT] Tracking auto-stopped:', data);
+
+        // Aggiorna stato UI
+        isCurrentlyTracking = false;
+        updateUIForTracking(false);
+        document.getElementById('statusText').textContent = 'Pronto';
+
+        // Mostra notifica
+        const minutes = Math.floor((data.seconds || 0) / 60);
+        showNotification(`Tracking fermato automaticamente (${minutes} min salvati)`, 'success');
+
+        // Ricarica statistiche e timeline
+        await loadTodayStats();
+        await loadTimeline();
+    });
 });
 
 // === TIPI DI ATTIVITÀ ===
@@ -77,18 +134,24 @@ function displayProjects(projects) {
         return;
     }
 
-    projectList.innerHTML = projects.map(project => `
+    projectList.innerHTML = projects.map(project => {
+        const escapedName = escapeJs(project.name);
+        const escapedDesc = escapeJs(project.description || '');
+        return `
         <div class="project-item">
             <div>
-                <h3>${project.name}</h3>
-                ${project.description ? `<p>${project.description}</p>` : ''}
+                <h3>${escapeHtml(project.name)}</h3>
+                ${project.description ? `<p>${escapeHtml(project.description)}</p>` : ''}
             </div>
             <div style="display: flex; gap: 10px;">
-                <button class="btn" style="width: 150px; padding: 8px 16px; margin: 0; background: #f59e0b;"
-                        onclick="archiveProject(${project.id}, '${project.name.replace(/'/g, "\\'")}')">Chiudi Progetto</button>
+                <button class="btn" style="width: auto; padding: 8px 16px; margin: 0; background: #3b82f6;"
+                        onclick="openEditProjectModal(${project.id}, '${escapedName}', '${escapedDesc}')">Modifica</button>
+                <button class="btn" style="width: auto; padding: 8px 16px; margin: 0; background: #f59e0b;"
+                        onclick="archiveProject(${project.id}, '${escapedName}')">Chiudi Progetto</button>
             </div>
         </div>
-    `).join('');
+    `;
+    }).join('');
 }
 
 function populateProjectSelect(projects) {
@@ -124,6 +187,15 @@ window.createProject = async function() {
         return;
     }
 
+    // Validate input lengths
+    try {
+        validateLength(name, MAX_PROJECT_NAME_LENGTH, 'Nome progetto');
+        validateLength(description, MAX_PROJECT_DESC_LENGTH, 'Descrizione');
+    } catch (error) {
+        showNotification(error.message, 'error');
+        return;
+    }
+
     try {
         await CreateProject(name, description);
         showNotification('Progetto creato con successo!', 'success');
@@ -131,6 +203,52 @@ window.createProject = async function() {
         await loadProjects();
     } catch (error) {
         console.error('Errore creazione progetto:', error);
+        showNotification('Errore: ' + error, 'error');
+    }
+}
+
+// === MODIFICA PROGETTO ===
+
+window.openEditProjectModal = function(projectID, name, description) {
+    document.getElementById('editProjectId').value = projectID;
+    document.getElementById('editProjectName').value = name;
+    document.getElementById('editProjectDesc').value = description || '';
+    document.getElementById('editProjectModal').classList.add('show');
+}
+
+window.closeEditProjectModal = function() {
+    document.getElementById('editProjectModal').classList.remove('show');
+    document.getElementById('editProjectId').value = '';
+    document.getElementById('editProjectName').value = '';
+    document.getElementById('editProjectDesc').value = '';
+}
+
+window.updateProject = async function() {
+    const projectID = parseInt(document.getElementById('editProjectId').value);
+    const name = document.getElementById('editProjectName').value.trim();
+    const description = document.getElementById('editProjectDesc').value.trim();
+
+    if (!name) {
+        showNotification('Inserisci un nome per il progetto', 'error');
+        return;
+    }
+
+    // Validate input lengths
+    try {
+        validateLength(name, MAX_PROJECT_NAME_LENGTH, 'Nome progetto');
+        validateLength(description, MAX_PROJECT_DESC_LENGTH, 'Descrizione');
+    } catch (error) {
+        showNotification(error.message, 'error');
+        return;
+    }
+
+    try {
+        await UpdateProject(projectID, name, description);
+        showNotification('Progetto aggiornato con successo!', 'success');
+        closeEditProjectModal();
+        await loadProjects();
+    } catch (error) {
+        console.error('Errore aggiornamento progetto:', error);
         showNotification('Errore: ' + error, 'error');
     }
 }
@@ -198,13 +316,19 @@ async function stopTracking() {
 }
 
 async function checkTrackingStatus() {
+    // Debounce: skip if a check is already in progress
+    if (statusCheckInProgress) {
+        return;
+    }
+
+    statusCheckInProgress = true;
     try {
         const state = await GetTrackingState();
 
         if (state.is_tracking) {
             isCurrentlyTracking = true;
             updateUIForTracking(true);
-            document.getElementById('statusText').textContent = `Tracking attivo: ${state.project_name || 'Progetto'}`;
+            document.getElementById('statusText').textContent = `Tracking attivo: ${escapeHtml(state.project_name || 'Progetto')}`;
 
             // Mostra tempo trascorso
             const liveStatsDiv = document.getElementById('liveStats');
@@ -227,9 +351,14 @@ async function checkTrackingStatus() {
             isCurrentlyTracking = false;
             updateUIForTracking(false);
             document.getElementById('statusText').textContent = 'Pronto';
+
+            // Controlla anche se c'è un periodo idle pendente (dopo auto-stop)
+            await checkForPendingIdle();
         }
     } catch (error) {
         console.error('Errore check status:', error);
+    } finally {
+        statusCheckInProgress = false;
     }
 }
 
@@ -249,6 +378,11 @@ async function checkForPendingIdle() {
 function showIdleModal(idlePeriod) {
     const modal = document.getElementById('idleModal');
     if (!modal) return;
+
+    // Se il modale è già visibile, non ripopolare il dropdown (evita di cancellare la selezione utente)
+    if (modal.classList.contains('show')) {
+        return;
+    }
 
     // Formatta durata
     const minutes = idlePeriod.minutes;
@@ -722,16 +856,20 @@ function createNoteMarker(note, startTime, totalMs) {
         ? noteText.substring(0, 100) + '...'
         : noteText;
 
-    // Costruisci testo per il tooltip nativo
-    const tooltipText = `📝 NOTA\n${dateStr} ${timeStr}\n\n${notePreview}`;
+    // Costruisci testo per il tooltip nativo (escaped)
+    const tooltipText = `📝 NOTA\n${dateStr} ${timeStr}\n\n${escapeHtml(notePreview)}`;
+
+    // Escape note text for onclick handler
+    const escapedNoteText = escapeJs(noteText);
+    const escapedTimestamp = escapeJs(`${dateStr} ${timeStr}`);
 
     return `
-        <div class="note-marker" style="left: ${left}%;" title="${tooltipText.replace(/"/g, '&quot;')}">
+        <div class="note-marker" style="left: ${left}%;" title="${escapeHtml(tooltipText).replace(/"/g, '&quot;')}">
             <!-- Linea verticale -->
             <div class="note-marker-line"></div>
 
             <!-- Icona nota sopra la timeline -->
-            <div class="note-marker-icon" onclick="editNoteFromTimeline(${note.id}, '${noteText.replace(/'/g, "\\'").replace(/\n/g, '\\n')}', '${dateStr} ${timeStr}')">
+            <div class="note-marker-icon" onclick="editNoteFromTimeline(${parseInt(note.id)}, '${escapedNoteText}', '${escapedTimestamp}')">
                 📝
             </div>
         </div>
@@ -787,7 +925,7 @@ function createTimelineSegment(session, startTime, totalMs) {
     const dateStr = `${displayDay}/${displayMonth}`;
 
     const activityTypeName = session.activity_type || 'Nessuna';
-    const tooltipText = `${activityTypeName}\nInizio: ${dateStr} ${timeStr}\nDurata: ${Math.floor(session.seconds / 60)} min`;
+    const tooltipText = `${escapeHtml(activityTypeName)}\nInizio: ${dateStr} ${timeStr}\nDurata: ${Math.floor(session.seconds / 60)} min`;
 
     // Trova tipo attività per colore e pattern
     const activityTypeObj = activityTypes.find(t => t.name === activityTypeName);
@@ -817,12 +955,16 @@ function createTimelineSegment(session, startTime, totalMs) {
         }
     }
 
+    // Escape values for onclick handler
+    const escapedActivityType = escapeJs(activityTypeName);
+    const escapedProjectName = escapeJs(session.project_name || '');
+
     return `
         <div class="timeline-segment"
              style="left: ${left}%; width: ${Math.max(width, 0.5)}%; ${bgStyle} z-index: 2;"
-             title="${tooltipText.replace(/"/g, '&quot;')}"
-             data-session-id="${session.id}"
-             onclick="showSessionMenu(event, ${session.id}, ${session.seconds}, '${activityTypeName}', '${(session.project_name || '').replace(/'/g, "\\'")}')">
+             title="${escapeHtml(tooltipText).replace(/"/g, '&quot;')}"
+             data-session-id="${parseInt(session.id)}"
+             onclick="showSessionMenu(event, ${parseInt(session.id)}, ${parseInt(session.seconds)}, '${escapedActivityType}', '${escapedProjectName}')">
         </div>
     `;
 }
@@ -912,10 +1054,13 @@ async function displayNotesList(notes) {
     let html = '<div style="display: flex; flex-direction: column; gap: 12px;">';
 
     notes.forEach(note => {
-        const projectName = note.project_name || 'Progetto sconosciuto';
+        const projectName = escapeHtml(note.project_name || 'Progetto sconosciuto');
         const timestamp = new Date(note.timestamp);
         const dateStr = timestamp.toLocaleDateString('it-IT');
         const timeStr = timestamp.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
+
+        const escapedNoteText = escapeJs(note.note_text || '');
+        const displayNoteText = escapeHtml(note.note_text || '');
 
         html += `
             <div style="background: #1a1a1a; padding: 15px; border-radius: 8px; border-left: 4px solid #ff6b2b; border: 1px solid #3a3a3a;">
@@ -925,17 +1070,17 @@ async function displayNotesList(notes) {
                         <span style="color: #999999; font-size: 0.85em; margin-left: 10px;">${dateStr} ${timeStr}</span>
                     </div>
                     <div style="display: flex; gap: 8px;">
-                        <button onclick="editNoteFromList(${note.id}, '${note.note_text.replace(/'/g, "\\'")}', ${note.project_id})"
+                        <button onclick="editNoteFromList(${parseInt(note.id)}, '${escapedNoteText}', ${parseInt(note.project_id)})"
                                 style="padding: 5px 12px; background: #ff6b2b; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.85em;">
                             Modifica
                         </button>
-                        <button onclick="deleteNoteFromList(${note.id})"
+                        <button onclick="deleteNoteFromList(${parseInt(note.id)})"
                                 style="padding: 5px 12px; background: #ef4444; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.85em;">
                             Elimina
                         </button>
                     </div>
                 </div>
-                <p style="color: #ffffff; margin: 0; white-space: pre-wrap;">${note.note_text}</p>
+                <p style="color: #ffffff; margin: 0; white-space: pre-wrap;">${displayNoteText}</p>
             </div>
         `;
     });
@@ -1115,6 +1260,15 @@ window.saveNewSession = async function() {
 window.showSessionMenu = function(event, sessionID, seconds, activityType, projectName) {
     event.stopPropagation();
 
+    // Validate inputs
+    sessionID = parseInt(sessionID);
+    seconds = parseInt(seconds);
+
+    // Escape values for display and onclick handlers
+    const escapedProjectName = escapeJs(projectName || '');
+    const escapedActivityType = escapeJs(activityType || '');
+    const displayProjectName = escapeHtml(projectName || '');
+
     // Rimuovi menu esistente
     const existingMenu = document.getElementById('contextMenu');
     if (existingMenu) existingMenu.remove();
@@ -1124,13 +1278,13 @@ window.showSessionMenu = function(event, sessionID, seconds, activityType, proje
     menuDiv.style.cssText = `position: fixed; left: ${event.clientX}px; top: ${event.clientY}px; background: white; border: 1px solid #ccc; border-radius: 4px; box-shadow: 0 4px 20px rgba(0,0,0,0.3); z-index: 999999; min-width: 200px; padding: 0;`;
 
     menuDiv.innerHTML = `
-        <div style="padding: 8px; border-bottom: 1px solid #eee; background: #f5f5f5; font-weight: bold;">${projectName}</div>
+        <div style="padding: 8px; border-bottom: 1px solid #eee; background: #f5f5f5; font-weight: bold;">${displayProjectName}</div>
         <div style="padding: 4px 0;">
-            <button onclick="editActivityType(${sessionID}, '${activityType}', '${projectName}')" style="width: 100%; padding: 8px 12px; border: none; background: none; text-align: left; cursor: pointer;">Modifica tipo attività</button>
-            <button onclick="editSessionDuration(${sessionID}, ${seconds}, '${projectName}')" style="width: 100%; padding: 8px 12px; border: none; background: none; text-align: left; cursor: pointer;">Modifica durata</button>
-            <button onclick="splitSessionDialog(${sessionID}, ${seconds}, '${activityType}', '${projectName}')" style="width: 100%; padding: 8px 12px; border: none; background: none; text-align: left; cursor: pointer;">Dividi sessione</button>
+            <button onclick="editActivityType(${sessionID}, '${escapedActivityType}', '${escapedProjectName}')" style="width: 100%; padding: 8px 12px; border: none; background: none; text-align: left; cursor: pointer;">Modifica tipo attività</button>
+            <button onclick="editSessionDuration(${sessionID}, ${seconds}, '${escapedProjectName}')" style="width: 100%; padding: 8px 12px; border: none; background: none; text-align: left; cursor: pointer;">Modifica durata</button>
+            <button onclick="splitSessionDialog(${sessionID}, ${seconds}, '${escapedActivityType}', '${escapedProjectName}')" style="width: 100%; padding: 8px 12px; border: none; background: none; text-align: left; cursor: pointer;">Dividi sessione</button>
             <hr style="margin: 4px 0; border: none; border-top: 1px solid #eee;">
-            <button onclick="deleteSession(${sessionID}, '${projectName}')" style="width: 100%; padding: 8px 12px; border: none; background: none; text-align: left; cursor: pointer; color: #d32f2f;">Elimina sessione</button>
+            <button onclick="deleteSession(${sessionID}, '${escapedProjectName}')" style="width: 100%; padding: 8px 12px; border: none; background: none; text-align: left; cursor: pointer; color: #d32f2f;">Elimina sessione</button>
         </div>
     `;
 
@@ -1154,58 +1308,76 @@ window.splitSessionDialog = async function(sessionID, totalSeconds, currentActiv
 
     const totalMinutes = Math.floor(totalSeconds / 60);
 
-    const input = prompt(
-        `Dividi sessione: ${projectName}\n\nDurata totale: ${totalMinutes} min\n\nInserisci durata PRIMA PARTE in minuti:`,
-        Math.floor(totalMinutes / 2)
-    );
+    // Imposta valori nel modale
+    document.getElementById('splitSessionId').value = sessionID;
+    document.getElementById('splitSessionTotalSeconds').value = totalSeconds;
+    document.getElementById('splitSessionProject').textContent = projectName;
+    document.getElementById('splitSessionTotal').textContent = totalMinutes;
+    document.getElementById('splitSessionFirstPart').value = Math.floor(totalMinutes / 2);
+    document.getElementById('splitSessionFirstPart').max = totalMinutes - 1;
+    updateSplitSecondPart();
 
-    if (input === null) return;
+    // Popola select tipi attività
+    const firstSelect = document.getElementById('splitSessionFirstType');
+    const secondSelect = document.getElementById('splitSessionSecondType');
+    firstSelect.innerHTML = '<option value="">Nessuno</option>';
+    secondSelect.innerHTML = '<option value="">Nessuno</option>';
+    activityTypes.forEach(type => {
+        const firstSelected = type.name === currentActivityType ? 'selected' : '';
+        firstSelect.innerHTML += `<option value="${escapeHtml(type.name)}" ${firstSelected}>${escapeHtml(type.name)}</option>`;
+        secondSelect.innerHTML += `<option value="${escapeHtml(type.name)}">${escapeHtml(type.name)}</option>`;
+    });
 
-    const firstPartMinutes = parseInt(input);
+    // Mostra modale
+    document.getElementById('splitSessionModal').classList.add('show');
+
+    // Focus sull'input
+    setTimeout(() => {
+        document.getElementById('splitSessionFirstPart').focus();
+        document.getElementById('splitSessionFirstPart').select();
+    }, 100);
+}
+
+// Aggiorna calcolo seconda parte in tempo reale
+function updateSplitSecondPart() {
+    const totalSeconds = parseInt(document.getElementById('splitSessionTotalSeconds').value);
+    const totalMinutes = Math.floor(totalSeconds / 60);
+    const firstPart = parseInt(document.getElementById('splitSessionFirstPart').value) || 0;
+    const secondPart = totalMinutes - firstPart;
+    document.getElementById('splitSessionSecondPart').textContent = secondPart > 0 ? secondPart : '--';
+}
+
+// Event listener per aggiornamento in tempo reale
+document.addEventListener('DOMContentLoaded', () => {
+    const splitInput = document.getElementById('splitSessionFirstPart');
+    if (splitInput) {
+        splitInput.addEventListener('input', updateSplitSecondPart);
+    }
+});
+
+window.closeSplitSessionModal = function() {
+    document.getElementById('splitSessionModal').classList.remove('show');
+}
+
+window.confirmSplitSession = async function() {
+    const sessionID = parseInt(document.getElementById('splitSessionId').value);
+    const totalSeconds = parseInt(document.getElementById('splitSessionTotalSeconds').value);
+    const totalMinutes = Math.floor(totalSeconds / 60);
+    const firstPartMinutes = parseInt(document.getElementById('splitSessionFirstPart').value);
+
     if (isNaN(firstPartMinutes) || firstPartMinutes <= 0 || firstPartMinutes >= totalMinutes) {
-        showNotification('Durata non valida', 'error');
+        showNotification('Durata prima parte non valida', 'error');
         return;
     }
 
     const firstPartSeconds = firstPartMinutes * 60;
-    const secondPartMinutes = totalMinutes - firstPartMinutes;
-
-    // Chiedi i tipi di attività per entrambe le parti
-    const activities = ['', ...activityTypes.map(t => t.name)];
-    const activityOptions = activities.map((a, i) => `${i}. ${a || 'Nessuno'}`).join('\n');
-
-    const firstActivityChoice = prompt(
-        `Tipo attività PRIMA PARTE (${firstPartMinutes} min):\n\n${activityOptions}\n\nInserisci numero:`,
-        currentActivityType ? activities.indexOf(currentActivityType).toString() : '0'
-    );
-
-    if (firstActivityChoice === null) return;
-
-    const firstActivityIndex = parseInt(firstActivityChoice);
-    if (isNaN(firstActivityIndex) || firstActivityIndex < 0 || firstActivityIndex >= activities.length) {
-        showNotification('Scelta non valida', 'error');
-        return;
-    }
-
-    const secondActivityChoice = prompt(
-        `Tipo attività SECONDA PARTE (${secondPartMinutes} min):\n\n${activityOptions}\n\nInserisci numero:`,
-        '0'
-    );
-
-    if (secondActivityChoice === null) return;
-
-    const secondActivityIndex = parseInt(secondActivityChoice);
-    if (isNaN(secondActivityIndex) || secondActivityIndex < 0 || secondActivityIndex >= activities.length) {
-        showNotification('Scelta non valida', 'error');
-        return;
-    }
-
-    const firstActivityType = activities[firstActivityIndex] || null;
-    const secondActivityType = activities[secondActivityIndex] || null;
+    const firstActivityType = document.getElementById('splitSessionFirstType').value || null;
+    const secondActivityType = document.getElementById('splitSessionSecondType').value || null;
 
     try {
         await SplitSession(sessionID, firstPartSeconds, firstActivityType, secondActivityType);
         showNotification('Sessione divisa!', 'success');
+        closeSplitSessionModal();
         await loadTimeline();
     } catch (error) {
         console.error('Errore divisione sessione:', error);
@@ -1214,23 +1386,39 @@ window.splitSessionDialog = async function(sessionID, totalSeconds, currentActiv
 }
 
 window.editActivityType = async function(sessionID, currentActivityType, projectName) {
-    const activities = ['', ...activityTypes.map(t => t.name)];
-    const options = activities.map((a, i) => `${i}. ${a || 'Nessuno'}`).join('\n');
-    const choice = prompt(`Modifica tipo attività per: ${projectName}\n\nAttuale: ${currentActivityType || 'Non specificato'}\n\nSeleziona nuovo tipo:\n\n${options}\n\nInserisci numero:`);
+    // Rimuovi menu contestuale
+    const menu = document.getElementById('contextMenu');
+    if (menu) menu.remove();
 
-    if (choice === null) return;
+    // Popola select con tipi attività
+    const select = document.getElementById('editSessionActivitySelect');
+    select.innerHTML = '<option value="">Nessuno</option>';
+    activityTypes.forEach(type => {
+        const selected = type.name === currentActivityType ? 'selected' : '';
+        select.innerHTML += `<option value="${escapeHtml(type.name)}" ${selected}>${escapeHtml(type.name)}</option>`;
+    });
 
-    const index = parseInt(choice);
-    if (isNaN(index) || index < 0 || index >= activities.length) {
-        showNotification('Scelta non valida', 'error');
-        return;
-    }
+    // Imposta valori nel modale
+    document.getElementById('editSessionActivityId').value = sessionID;
+    document.getElementById('editSessionActivityProject').textContent = projectName;
+    document.getElementById('editSessionActivityCurrent').textContent = currentActivityType || 'Non specificato';
 
-    const newActivityType = activities[index] || null;
+    // Mostra modale
+    document.getElementById('editSessionActivityModal').classList.add('show');
+}
+
+window.closeEditSessionActivityModal = function() {
+    document.getElementById('editSessionActivityModal').classList.remove('show');
+}
+
+window.confirmEditSessionActivity = async function() {
+    const sessionID = parseInt(document.getElementById('editSessionActivityId').value);
+    const newActivityType = document.getElementById('editSessionActivitySelect').value || null;
 
     try {
         await UpdateSessionActivityType(sessionID, newActivityType);
         showNotification('Tipo attività aggiornato!', 'success');
+        closeEditSessionActivityModal();
         await loadTimeline();
     } catch (error) {
         console.error('Errore aggiornamento tipo attività:', error);
@@ -1239,12 +1427,36 @@ window.editActivityType = async function(sessionID, currentActivityType, project
 }
 
 window.editSessionDuration = async function(sessionID, currentSeconds, projectName) {
+    // Rimuovi menu contestuale
+    const menu = document.getElementById('contextMenu');
+    if (menu) menu.remove();
+
     const currentMinutes = Math.floor(currentSeconds / 60);
-    const input = prompt(`Modifica durata per: ${projectName}\n\nDurata attuale: ${currentMinutes} min\n\nInserisci nuova durata in minuti:`, currentMinutes);
 
-    if (input === null) return;
+    // Imposta valori nel modale
+    document.getElementById('editSessionDurationId').value = sessionID;
+    document.getElementById('editSessionDurationProject').textContent = projectName;
+    document.getElementById('editSessionDurationCurrent').textContent = currentMinutes;
+    document.getElementById('editSessionDurationInput').value = currentMinutes;
 
-    const newMinutes = parseInt(input);
+    // Mostra modale
+    document.getElementById('editSessionDurationModal').classList.add('show');
+
+    // Focus sull'input
+    setTimeout(() => {
+        document.getElementById('editSessionDurationInput').focus();
+        document.getElementById('editSessionDurationInput').select();
+    }, 100);
+}
+
+window.closeEditSessionDurationModal = function() {
+    document.getElementById('editSessionDurationModal').classList.remove('show');
+}
+
+window.confirmEditSessionDuration = async function() {
+    const sessionID = parseInt(document.getElementById('editSessionDurationId').value);
+    const newMinutes = parseInt(document.getElementById('editSessionDurationInput').value);
+
     if (isNaN(newMinutes) || newMinutes <= 0) {
         showNotification('Durata non valida', 'error');
         return;
@@ -1253,6 +1465,7 @@ window.editSessionDuration = async function(sessionID, currentSeconds, projectNa
     try {
         await UpdateSessionDuration(sessionID, newMinutes * 60);
         showNotification('Durata aggiornata!', 'success');
+        closeEditSessionDurationModal();
         await loadTimeline();
     } catch (error) {
         console.error('Errore aggiornamento durata:', error);
@@ -1261,14 +1474,16 @@ window.editSessionDuration = async function(sessionID, currentSeconds, projectNa
 }
 
 window.deleteSession = async function(sessionID, projectName) {
-    try {
-        await DeleteSession(sessionID);
-        showNotification('Sessione eliminata!', 'success');
-        await loadTimeline();
-    } catch (error) {
-        console.error('Errore eliminazione sessione:', error);
-        showNotification('Errore: ' + error, 'error');
-    }
+    // Rimuovi menu contestuale
+    const menu = document.getElementById('contextMenu');
+    if (menu) menu.remove();
+
+    showConfirmDeleteModal(
+        sessionID,
+        'session',
+        `Eliminare sessione di "${projectName}"?`,
+        'La sessione verrà eliminata definitivamente.'
+    );
 }
 
 // === REPORT ===
@@ -1581,17 +1796,44 @@ window.reactivateArchivedProject = async function(projectID, projectName) {
 }
 
 window.deleteArchivedProject = async function(projectID, projectName) {
-    const message = `Eliminare definitivamente "${projectName}"?\n\n` +
-        `Si consiglia di esportare prima un backup del progetto in formato JSON ` +
-        `per poterlo eventualmente reimportare in futuro.\n\n` +
-        `Questa azione è irreversibile.`;
+    showConfirmDeleteModal(
+        projectID,
+        'project',
+        `Eliminare definitivamente "${projectName}"?`,
+        'Si consiglia di esportare prima un backup del progetto in formato JSON per poterlo eventualmente reimportare in futuro.'
+    );
+}
 
-    if (!confirm(message)) return;
+// === MODAL CONFERMA ELIMINAZIONE ===
+
+window.showConfirmDeleteModal = function(id, type, title, message) {
+    document.getElementById('confirmDeleteId').value = id;
+    document.getElementById('confirmDeleteType').value = type;
+    document.getElementById('confirmDeleteTitle').textContent = title;
+    document.getElementById('confirmDeleteMessage').textContent = message;
+    document.getElementById('confirmDeleteModal').classList.add('show');
+}
+
+window.closeConfirmDeleteModal = function() {
+    document.getElementById('confirmDeleteModal').classList.remove('show');
+}
+
+window.confirmDelete = async function() {
+    const id = parseInt(document.getElementById('confirmDeleteId').value);
+    const type = document.getElementById('confirmDeleteType').value;
 
     try {
-        await DeleteProject(projectID);
-        showNotification('Progetto eliminato!', 'success');
-        await loadArchivedProjects();
+        if (type === 'project') {
+            await DeleteProject(id);
+            showNotification('Progetto eliminato!', 'success');
+            closeConfirmDeleteModal();
+            await loadArchivedProjects();
+        } else if (type === 'session') {
+            await DeleteSession(id);
+            showNotification('Sessione eliminata!', 'success');
+            closeConfirmDeleteModal();
+            await loadTimeline();
+        }
     } catch (error) {
         console.error('Errore eliminazione:', error);
         showNotification('Errore: ' + error, 'error');

@@ -2,6 +2,7 @@ package tracker
 
 import (
 	"fmt"
+	"sync"
 	"syscall"
 	"time"
 	"unsafe"
@@ -165,14 +166,19 @@ type AppSession struct {
 // SaveCallback è la funzione chiamata per salvare periodicamente i dati
 type SaveCallback func(totalSeconds int) error
 
+// OnIdleCallback è la funzione chiamata quando viene rilevato l'idle
+type OnIdleCallback func()
+
 // TimeWatcher traccia il tempo delle applicazioni
 type TimeWatcher struct {
+	mu                 sync.Mutex     // mutex per proteggere accesso concorrente
 	appTimes           map[string]int // nome app -> secondi (per statistiche dettagliate)
 	sessions           []AppSession   // sessioni dettagliate con timestamp
 	currentApp         string         // app correntemente tracciata
 	currentStartTime   time.Time      // quando è iniziata la sessione corrente
 	stopChan           chan bool
 	running            bool
+	stopOnce           sync.Once   // previene doppia chiusura del canale
 	idleThreshold      int         // soglia idle in secondi (es. 300 = 5 minuti)
 	isIdle             bool        // stato idle corrente
 	idleStartTime      time.Time   // quando è iniziato l'idle corrente
@@ -182,6 +188,7 @@ type TimeWatcher struct {
 	saveCallback       SaveCallback // callback per salvataggio periodico
 	saveInterval       int          // intervallo salvataggio in secondi (default 300 = 5 min)
 	lastSaveSeconds    int          // secondi all'ultimo salvataggio
+	onIdleCallback     OnIdleCallback // callback chiamata quando viene rilevato idle
 }
 
 // NewTimeWatcher crea un nuovo watcher
@@ -214,12 +221,23 @@ func (w *TimeWatcher) SetSaveCallback(callback SaveCallback, intervalSeconds int
 
 // SetIdleThreshold imposta la soglia idle (in secondi)
 func (w *TimeWatcher) SetIdleThreshold(seconds int) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
 	w.idleThreshold = seconds
+}
+
+// SetOnIdleCallback imposta la callback da chiamare quando viene rilevato l'idle
+func (w *TimeWatcher) SetOnIdleCallback(callback OnIdleCallback) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	w.onIdleCallback = callback
 }
 
 // Start avvia il tracciamento
 func (w *TimeWatcher) Start(intervalSeconds int) {
+	w.mu.Lock()
 	if w.running {
+		w.mu.Unlock()
 		fmt.Println("[WATCHER] Gia in esecuzione")
 		return
 	}
@@ -228,7 +246,12 @@ func (w *TimeWatcher) Start(intervalSeconds int) {
 	w.trackingStartTime = time.Now() // Memorizza quando è iniziato il tracking
 	w.totalActiveSeconds = 0         // Reset contatore
 	w.lastSaveSeconds = 0            // Reset ultimo salvataggio
-	fmt.Printf("[WATCHER] Avviato (intervallo: %d secondi, auto-save ogni %d secondi)\n", intervalSeconds, w.saveInterval)
+	w.stopOnce = sync.Once{}         // Reset stopOnce per permettere nuove chiamate a Stop
+	saveInterval := w.saveInterval
+	saveCallback := w.saveCallback
+	w.mu.Unlock()
+
+	fmt.Printf("[WATCHER] Avviato (intervallo: %d secondi, auto-save ogni %d secondi)\n", intervalSeconds, saveInterval)
 
 	// Goroutine per il tracking
 	go func() {
@@ -241,6 +264,11 @@ func (w *TimeWatcher) Start(intervalSeconds int) {
 				fmt.Println("[WATCHER] Fermato")
 				return
 			case <-ticker.C:
+				// Leggi soglia idle corrente (può essere aggiornata)
+				w.mu.Lock()
+				currentIdleThreshold := w.idleThreshold
+				w.mu.Unlock()
+
 				// Controlla idle time
 				idleTime, err := GetIdleTime()
 				if err != nil {
@@ -248,14 +276,25 @@ func (w *TimeWatcher) Start(intervalSeconds int) {
 					continue
 				}
 
+				w.mu.Lock()
 				// Se idle time supera la soglia, PC è inattivo
-				if idleTime >= w.idleThreshold {
+				if idleTime >= currentIdleThreshold {
 					// Se non era già in idle, registra inizio periodo idle
+					var idleCallback OnIdleCallback
 					if !w.isIdle {
 						w.isIdle = true
 						w.idleStartTime = time.Now()
-						fmt.Printf("[IDLE] Sistema inattivo da %d secondi (soglia: %d sec)\n", idleTime, w.idleThreshold)
+						idleCallback = w.onIdleCallback // Cattura callback prima di unlock
+						fmt.Printf("[IDLE] Sistema inattivo da %d secondi (soglia: %d sec)\n", idleTime, currentIdleThreshold)
 					}
+					w.mu.Unlock()
+
+					// Chiama callback DOPO unlock per evitare deadlock
+					if idleCallback != nil {
+						fmt.Println("[IDLE] Chiamata callback onIdle...")
+						idleCallback()
+					}
+
 					// NON tracciare quando idle
 					continue
 				}
@@ -278,6 +317,7 @@ func (w *TimeWatcher) Start(intervalSeconds int) {
 						w.idleStartTime.Format("15:04:05"),
 						endTime.Format("15:04:05"))
 				}
+				w.mu.Unlock()
 
 				// Sistema attivo: rileva app e traccia
 				processName, err := GetActiveProcessName()
@@ -285,6 +325,7 @@ func (w *TimeWatcher) Start(intervalSeconds int) {
 					continue
 				}
 
+				w.mu.Lock()
 				// Accumula tempo totale attivo (per la sessione unica)
 				w.totalActiveSeconds += intervalSeconds
 
@@ -294,19 +335,26 @@ func (w *TimeWatcher) Start(intervalSeconds int) {
 				// Aggiorna app corrente (solo per info)
 				w.currentApp = processName
 
+				totalActive := w.totalActiveSeconds
+				lastSave := w.lastSaveSeconds
+				appTime := w.appTimes[processName]
+				w.mu.Unlock()
+
 				fmt.Printf("[TRACK] %s: %d sec | Totale sessione: %d sec (%d min)\n",
-					processName, w.appTimes[processName],
-					w.totalActiveSeconds, w.totalActiveSeconds/60)
+					processName, appTime,
+					totalActive, totalActive/60)
 
 				// Salvataggio periodico (ogni saveInterval secondi)
-				if w.saveCallback != nil && (w.totalActiveSeconds-w.lastSaveSeconds) >= w.saveInterval {
-					err := w.saveCallback(w.totalActiveSeconds)
+				if saveCallback != nil && (totalActive-lastSave) >= saveInterval {
+					err := saveCallback(totalActive)
 					if err != nil {
 						fmt.Printf("[AUTOSAVE] Errore salvataggio: %v\n", err)
 					} else {
-						w.lastSaveSeconds = w.totalActiveSeconds
+						w.mu.Lock()
+						w.lastSaveSeconds = totalActive
+						w.mu.Unlock()
 						fmt.Printf("[AUTOSAVE] Salvato automaticamente: %d secondi (%d min)\n",
-							w.totalActiveSeconds, w.totalActiveSeconds/60)
+							totalActive, totalActive/60)
 					}
 				}
 			}
@@ -316,7 +364,9 @@ func (w *TimeWatcher) Start(intervalSeconds int) {
 
 // Stop ferma il tracciamento
 func (w *TimeWatcher) Stop() {
+	w.mu.Lock()
 	if !w.running {
+		w.mu.Unlock()
 		fmt.Println("[WATCHER] Non in esecuzione")
 		return
 	}
@@ -336,40 +386,67 @@ func (w *TimeWatcher) Stop() {
 	}
 
 	w.running = false
-	w.stopChan <- true
+	w.mu.Unlock()
+
+	// Usa sync.Once per prevenire doppia chiusura/invio sul canale
+	w.stopOnce.Do(func() {
+		w.stopChan <- true
+	})
 }
 
 // GetStats ritorna le statistiche
 func (w *TimeWatcher) GetStats() map[string]int {
-	return w.appTimes
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	// Crea una copia per evitare race condition
+	result := make(map[string]int, len(w.appTimes))
+	for k, v := range w.appTimes {
+		result[k] = v
+	}
+	return result
 }
 
 // GetPendingIdlePeriod restituisce il periodo idle in attesa di attribuzione
 func (w *TimeWatcher) GetPendingIdlePeriod() *IdlePeriod {
+	w.mu.Lock()
+	defer w.mu.Unlock()
 	return w.pendingIdlePeriod
 }
 
 // ClearPendingIdlePeriod rimuove il periodo idle pendente
 func (w *TimeWatcher) ClearPendingIdlePeriod() {
+	w.mu.Lock()
+	defer w.mu.Unlock()
 	w.pendingIdlePeriod = nil
 }
 
 // HasPendingIdlePeriod verifica se c'è un periodo idle in attesa
 func (w *TimeWatcher) HasPendingIdlePeriod() bool {
+	w.mu.Lock()
+	defer w.mu.Unlock()
 	return w.pendingIdlePeriod != nil
 }
 
 // GetSessions restituisce le sessioni dettagliate con timestamp
 func (w *TimeWatcher) GetSessions() []AppSession {
-	return w.sessions
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	// Crea una copia per evitare race condition
+	result := make([]AppSession, len(w.sessions))
+	copy(result, w.sessions)
+	return result
 }
 
 // GetTotalActiveSeconds restituisce i secondi totali attivi
 func (w *TimeWatcher) GetTotalActiveSeconds() int {
+	w.mu.Lock()
+	defer w.mu.Unlock()
 	return w.totalActiveSeconds
 }
 
 // GetTrackingStartTime restituisce quando è iniziato il tracking
 func (w *TimeWatcher) GetTrackingStartTime() time.Time {
+	w.mu.Lock()
+	defer w.mu.Unlock()
 	return w.trackingStartTime
 }

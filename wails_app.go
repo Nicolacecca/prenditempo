@@ -47,48 +47,44 @@ type ProjectData struct {
 	ClosedAt    string `json:"closed_at,omitempty"`
 }
 
-// GetProjects restituisce tutti i progetti attivi
+// GetProjects restituisce tutti i progetti attivi (ottimizzato con query filtrata)
 func (a *App) GetProjects() ([]ProjectData, error) {
-	projects, err := tracker.CaricaTuttiProgetti(a.db)
+	projects, err := tracker.CaricaProgettiAttivi(a.db)
 	if err != nil {
 		return nil, err
 	}
 
 	var result []ProjectData
 	for _, p := range projects {
-		if !p.Archived {
-			result = append(result, ProjectData{
-				ID:          p.ID,
-				Name:        p.Name,
-				Description: p.Description,
-				CreatedAt:   p.CreatedAt,
-				Archived:    p.Archived,
-				ClosedAt:    p.ClosedAt,
-			})
-		}
+		result = append(result, ProjectData{
+			ID:          p.ID,
+			Name:        p.Name,
+			Description: p.Description,
+			CreatedAt:   p.CreatedAt,
+			Archived:    p.Archived,
+			ClosedAt:    p.ClosedAt,
+		})
 	}
 	return result, nil
 }
 
-// GetArchivedProjects restituisce i progetti archiviati
+// GetArchivedProjects restituisce i progetti archiviati (ottimizzato con query filtrata)
 func (a *App) GetArchivedProjects() ([]ProjectData, error) {
-	projects, err := tracker.CaricaTuttiProgetti(a.db)
+	projects, err := tracker.CaricaProgettiArchiviati(a.db)
 	if err != nil {
 		return nil, err
 	}
 
 	var result []ProjectData
 	for _, p := range projects {
-		if p.Archived {
-			result = append(result, ProjectData{
-				ID:          p.ID,
-				Name:        p.Name,
-				Description: p.Description,
-				CreatedAt:   p.CreatedAt,
-				Archived:    p.Archived,
-				ClosedAt:    p.ClosedAt,
-			})
-		}
+		result = append(result, ProjectData{
+			ID:          p.ID,
+			Name:        p.Name,
+			Description: p.Description,
+			CreatedAt:   p.CreatedAt,
+			Archived:    p.Archived,
+			ClosedAt:    p.ClosedAt,
+		})
 	}
 	return result, nil
 }
@@ -111,6 +107,11 @@ func (a *App) ReactivateProject(projectID int) error {
 // DeleteProject elimina un progetto
 func (a *App) DeleteProject(projectID int) error {
 	return tracker.EliminaProgettoById(a.db, projectID)
+}
+
+// UpdateProject aggiorna nome e descrizione di un progetto
+func (a *App) UpdateProject(projectID int, name, description string) error {
+	return tracker.AggiornaProgetto(a.db, projectID, name, description)
 }
 
 // GetProjectReport genera il report di un progetto
@@ -191,25 +192,19 @@ type NoteData struct {
 	Timestamp   string `json:"timestamp"`
 }
 
-// GetNotes restituisce le note in un periodo
+// GetNotes restituisce le note in un periodo (ottimizzato con JOIN per evitare N+1)
 func (a *App) GetNotes(startDate, endDate string) ([]NoteData, error) {
-	notes, err := tracker.CaricaNotePerPeriodo(a.db, startDate, endDate)
+	notes, err := tracker.CaricaNotePerPeriodoConProgetto(a.db, startDate, endDate)
 	if err != nil {
 		return nil, err
 	}
 
 	var result []NoteData
 	for _, n := range notes {
-		// Recupera nome progetto
-		projectName := ""
-		if project, err := tracker.TrovaProgettoById(a.db, n.ProjectID); err == nil {
-			projectName = project.Name
-		}
-
 		result = append(result, NoteData{
 			ID:          n.ID,
 			ProjectID:   n.ProjectID,
-			ProjectName: projectName,
+			ProjectName: n.ProjectName,
 			NoteText:    n.NoteText,
 			Timestamp:   n.Timestamp,
 		})
@@ -373,12 +368,58 @@ func (a *App) StartTracking(projectID int, activityType *string) error {
 		return tracker.UpdatePendingTracking(a.db, sessionID, totalSeconds)
 	}, 300) // Ogni 5 minuti
 
+	// Imposta callback per auto-stop quando viene rilevato idle
+	watcher.SetOnIdleCallback(func() {
+		a.autoStopOnIdle(watcher, sessionID)
+	})
+
 	watcher.Start(5)
 
 	// Aggiorna stato globale
 	SetGlobalTrackingState(watcher, project, true, sessionID)
 
 	return nil
+}
+
+// autoStopOnIdle ferma automaticamente il tracking quando viene rilevato idle
+func (a *App) autoStopOnIdle(watcher *tracker.TimeWatcher, sessionID int64) {
+	globalStateMu.Lock()
+	defer globalStateMu.Unlock()
+
+	// Verifica che il tracking sia ancora attivo con questo watcher
+	if !globalIsTracking || globalWatcher != watcher {
+		fmt.Println("[IDLE-AUTOSTOP] Tracking già fermato o watcher diverso, skip")
+		return
+	}
+
+	// Ferma il watcher (non blocca perché chiamato dalla goroutine del watcher stesso)
+	// NON chiamare watcher.Stop() qui perché siamo già dentro la goroutine
+	finalSeconds := watcher.GetTotalActiveSeconds()
+
+	// Salva la sessione finale nel database
+	if sessionID > 0 && finalSeconds > 0 {
+		err := tracker.FinalizePendingTracking(a.db, sessionID, finalSeconds)
+		if err != nil {
+			fmt.Printf("[IDLE-AUTOSTOP] Errore salvataggio sessione: %v\n", err)
+		} else {
+			fmt.Printf("[IDLE-AUTOSTOP] Sessione salvata: %d secondi (%d min)\n", finalSeconds, finalSeconds/60)
+		}
+	}
+
+	// Reset stato globale (tracking fermato) MA mantieni il watcher per il pending idle
+	globalIsTracking = false
+	globalCurrentProject = nil
+	// NON azzerare globalWatcher - serve per rilevare quando l'utente torna e mostrare il modale idle
+	// globalWatcher = nil
+	globalPendingSessionID = 0
+
+	// Emetti evento al frontend per notificare l'auto-stop
+	runtime.EventsEmit(a.ctx, "tracking-auto-stopped", map[string]interface{}{
+		"seconds": finalSeconds,
+		"reason":  "idle",
+	})
+
+	fmt.Println("[IDLE-AUTOSTOP] Tracking fermato automaticamente per inattività")
 }
 
 // StopTracking ferma il tracking corrente
@@ -464,7 +505,7 @@ func (a *App) AttributeIdle(projectID int, isBreak bool) error {
 	defer globalStateMu.Unlock()
 
 	if globalWatcher == nil {
-		return fmt.Errorf("nessun tracking in corso")
+		return fmt.Errorf("nessun watcher disponibile")
 	}
 
 	idlePeriod := globalWatcher.GetPendingIdlePeriod()
@@ -475,6 +516,11 @@ func (a *App) AttributeIdle(projectID int, isBreak bool) error {
 	if isBreak {
 		// Registra come pausa (non viene salvato come sessione)
 		globalWatcher.ClearPendingIdlePeriod()
+		// Pulizia: se il tracking era già stato fermato (auto-stop), ferma il watcher
+		if !globalIsTracking {
+			globalWatcher.Stop()
+			globalWatcher = nil
+		}
 		return nil
 	}
 
@@ -492,6 +538,11 @@ func (a *App) AttributeIdle(projectID int, isBreak bool) error {
 	}
 
 	globalWatcher.ClearPendingIdlePeriod()
+	// Pulizia: se il tracking era già stato fermato (auto-stop), ferma il watcher
+	if !globalIsTracking {
+		globalWatcher.Stop()
+		globalWatcher = nil
+	}
 	return nil
 }
 
