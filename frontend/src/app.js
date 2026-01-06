@@ -9,7 +9,7 @@ import { CheckIdlePeriod, AttributeIdle } from './wailsjs/go/main/App.js';
 import { ExportData, ImportData } from './wailsjs/go/main/App.js';
 import { SaveReportJSON, SaveReportText, ImportProjectJSON } from './wailsjs/go/main/App.js';
 import { IsAutoStartEnabled, EnableAutoStart, DisableAutoStart } from './wailsjs/go/main/App.js';
-import { SetIdleThreshold, GetIdleThreshold } from './wailsjs/go/main/App.js';
+import { SetIdleThreshold, GetIdleThreshold, BringWindowToFront, RestoreNormalWindow } from './wailsjs/go/main/App.js';
 import { EventsOn } from './wailsjs/runtime/runtime.js';
 
 // === UTILITY FUNCTIONS ===
@@ -384,6 +384,9 @@ function showIdleModal(idlePeriod) {
         return;
     }
 
+    // Porta la finestra in primo piano per mostrare il modal all'utente
+    BringWindowToFront();
+
     // Formatta durata
     const minutes = idlePeriod.minutes;
     const hours = Math.floor(minutes / 60);
@@ -441,6 +444,8 @@ window.attributeIdleAsBreak = async function() {
 function hideIdleModal() {
     const modal = document.getElementById('idleModal');
     if (modal) modal.classList.remove('show');
+    // Rimuovi always on top quando l'utente ha interagito con il modal
+    RestoreNormalWindow();
 }
 
 function updateUIForTracking(isTracking) {

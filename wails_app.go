@@ -373,6 +373,14 @@ func (a *App) StartTracking(projectID int, activityType *string) error {
 		a.autoStopOnIdle(watcher, sessionID)
 	})
 
+	// Imposta callback per notifica quando l'utente torna dall'idle
+	watcher.SetOnIdleReturnCallback(func(minutes int) {
+		// Invia notifica toast Windows
+		a.ShowIdleNotification(minutes)
+		// Prova anche a portare la finestra in primo piano
+		a.BringWindowToFront()
+	})
+
 	watcher.Start(5)
 
 	// Aggiorna stato globale
@@ -562,6 +570,21 @@ func (a *App) SetIdleThreshold(minutes int) {
 // GetIdleThreshold ritorna la soglia di inattività corrente in minuti
 func (a *App) GetIdleThreshold() int {
 	return GetGlobalIdleThreshold()
+}
+
+// BringWindowToFront porta la finestra dell'applicazione in primo piano
+func (a *App) BringWindowToFront() {
+	// De-minimizza la finestra se minimizzata
+	runtime.WindowUnminimise(a.ctx)
+	// Mostra la finestra
+	runtime.WindowShow(a.ctx)
+	// Imposta always on top per forzare il primo piano
+	runtime.WindowSetAlwaysOnTop(a.ctx, true)
+}
+
+// RestoreNormalWindow rimuove always on top (da chiamare dopo che l'utente ha interagito)
+func (a *App) RestoreNormalWindow() {
+	runtime.WindowSetAlwaysOnTop(a.ctx, false)
 }
 
 // === EXPORT/IMPORT ===

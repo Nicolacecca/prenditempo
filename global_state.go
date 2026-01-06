@@ -3,6 +3,8 @@
 package main
 
 import (
+	"database/sql"
+	"strconv"
 	"sync"
 
 	"work-time-tracker-go/tracker"
@@ -16,10 +18,11 @@ var (
 	globalPendingSessionID int64
 	globalIdleThreshold    int // soglia inattività in minuti
 	globalStateMu          sync.Mutex
+	globalDB               *sql.DB // riferimento al database per persistenza
 )
 
-// InitGlobalState inizializza lo stato globale
-func InitGlobalState() {
+// InitGlobalState inizializza lo stato globale e carica le impostazioni dal database
+func InitGlobalState(db *sql.DB) {
 	globalStateMu.Lock()
 	defer globalStateMu.Unlock()
 
@@ -27,14 +30,29 @@ func InitGlobalState() {
 	globalCurrentProject = nil
 	globalWatcher = nil
 	globalPendingSessionID = 0
-	globalIdleThreshold = 5 // default 5 minuti
+	globalDB = db
+
+	// Carica idle threshold dal database, usa 5 come default
+	globalIdleThreshold = 5
+	if db != nil {
+		if value, err := tracker.GetSetting(db, "idle_threshold"); err == nil && value != "" {
+			if threshold, err := strconv.Atoi(value); err == nil && threshold > 0 {
+				globalIdleThreshold = threshold
+			}
+		}
+	}
 }
 
-// SetGlobalIdleThreshold imposta la soglia di inattività
+// SetGlobalIdleThreshold imposta la soglia di inattività e la salva nel database
 func SetGlobalIdleThreshold(minutes int) {
 	globalStateMu.Lock()
 	defer globalStateMu.Unlock()
 	globalIdleThreshold = minutes
+
+	// Salva nel database per persistenza
+	if globalDB != nil {
+		tracker.SetSetting(globalDB, "idle_threshold", strconv.Itoa(minutes))
+	}
 }
 
 // GetGlobalIdleThreshold ritorna la soglia di inattività

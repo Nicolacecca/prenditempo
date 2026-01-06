@@ -61,8 +61,8 @@ func main() {
 	app := NewApp()
 	app.SetDB(db)
 
-	// Inizializza variabili globali per tracking
-	InitGlobalState()
+	// Inizializza variabili globali per tracking (carica anche idle threshold dal DB)
+	InitGlobalState(db)
 
 	// Crea applicazione Wails
 	err = wails.Run(&options.App{

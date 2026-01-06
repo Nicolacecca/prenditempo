@@ -169,26 +169,30 @@ type SaveCallback func(totalSeconds int) error
 // OnIdleCallback è la funzione chiamata quando viene rilevato l'idle
 type OnIdleCallback func()
 
+// OnIdleReturnCallback è la funzione chiamata quando l'utente torna dall'idle
+type OnIdleReturnCallback func(minutes int)
+
 // TimeWatcher traccia il tempo delle applicazioni
 type TimeWatcher struct {
-	mu                 sync.Mutex     // mutex per proteggere accesso concorrente
-	appTimes           map[string]int // nome app -> secondi (per statistiche dettagliate)
-	sessions           []AppSession   // sessioni dettagliate con timestamp
-	currentApp         string         // app correntemente tracciata
-	currentStartTime   time.Time      // quando è iniziata la sessione corrente
-	stopChan           chan bool
-	running            bool
-	stopOnce           sync.Once   // previene doppia chiusura del canale
-	idleThreshold      int         // soglia idle in secondi (es. 300 = 5 minuti)
-	isIdle             bool        // stato idle corrente
-	idleStartTime      time.Time   // quando è iniziato l'idle corrente
-	pendingIdlePeriod  *IdlePeriod // periodo idle in attesa di attribuzione
-	trackingStartTime  time.Time   // quando è iniziato il tracking (per sessione unica)
-	totalActiveSeconds int         // secondi totali attivi (escluso idle)
-	saveCallback       SaveCallback // callback per salvataggio periodico
-	saveInterval       int          // intervallo salvataggio in secondi (default 300 = 5 min)
-	lastSaveSeconds    int          // secondi all'ultimo salvataggio
-	onIdleCallback     OnIdleCallback // callback chiamata quando viene rilevato idle
+	mu                   sync.Mutex     // mutex per proteggere accesso concorrente
+	appTimes             map[string]int // nome app -> secondi (per statistiche dettagliate)
+	sessions             []AppSession   // sessioni dettagliate con timestamp
+	currentApp           string         // app correntemente tracciata
+	currentStartTime     time.Time      // quando è iniziata la sessione corrente
+	stopChan             chan bool
+	running              bool
+	stopOnce             sync.Once   // previene doppia chiusura del canale
+	idleThreshold        int         // soglia idle in secondi (es. 300 = 5 minuti)
+	isIdle               bool        // stato idle corrente
+	idleStartTime        time.Time   // quando è iniziato l'idle corrente
+	pendingIdlePeriod    *IdlePeriod // periodo idle in attesa di attribuzione
+	trackingStartTime    time.Time   // quando è iniziato il tracking (per sessione unica)
+	totalActiveSeconds   int         // secondi totali attivi (escluso idle)
+	saveCallback         SaveCallback // callback per salvataggio periodico
+	saveInterval         int          // intervallo salvataggio in secondi (default 300 = 5 min)
+	lastSaveSeconds      int          // secondi all'ultimo salvataggio
+	onIdleCallback       OnIdleCallback // callback chiamata quando viene rilevato idle
+	onIdleReturnCallback OnIdleReturnCallback // callback chiamata quando l'utente torna dall'idle
 }
 
 // NewTimeWatcher crea un nuovo watcher
@@ -231,6 +235,13 @@ func (w *TimeWatcher) SetOnIdleCallback(callback OnIdleCallback) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	w.onIdleCallback = callback
+}
+
+// SetOnIdleReturnCallback imposta la callback da chiamare quando l'utente torna dall'idle
+func (w *TimeWatcher) SetOnIdleReturnCallback(callback OnIdleReturnCallback) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	w.onIdleReturnCallback = callback
 }
 
 // Start avvia il tracciamento
@@ -300,10 +311,13 @@ func (w *TimeWatcher) Start(intervalSeconds int) {
 				}
 
 				// Se era in idle ed è tornato attivo
+				var idleReturnCallback OnIdleReturnCallback
+				var idleMinutes int
 				if w.isIdle {
 					w.isIdle = false
 					endTime := time.Now()
 					duration := int(endTime.Sub(w.idleStartTime).Seconds())
+					idleMinutes = duration / 60
 
 					// Crea periodo idle in attesa di attribuzione
 					w.pendingIdlePeriod = &IdlePeriod{
@@ -312,12 +326,21 @@ func (w *TimeWatcher) Start(intervalSeconds int) {
 						Duration:  duration,
 					}
 
+					// Cattura callback prima di unlock
+					idleReturnCallback = w.onIdleReturnCallback
+
 					fmt.Printf("[IDLE] Sistema riattivato - periodo idle: %d minuti (dal %s al %s)\n",
-						duration/60,
+						idleMinutes,
 						w.idleStartTime.Format("15:04:05"),
 						endTime.Format("15:04:05"))
 				}
 				w.mu.Unlock()
+
+				// Chiama callback DOPO unlock per evitare deadlock
+				if idleReturnCallback != nil && idleMinutes > 0 {
+					fmt.Println("[IDLE] Chiamata callback onIdleReturn...")
+					idleReturnCallback(idleMinutes)
+				}
 
 				// Sistema attivo: rileva app e traccia
 				processName, err := GetActiveProcessName()
