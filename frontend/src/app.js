@@ -4,7 +4,6 @@ import { GetSessions, CreateSession, UpdateSessionDuration, UpdateSessionActivit
 import { GetNotes, GetAllNotes, CreateNote, UpdateNote, DeleteNote } from './wailsjs/go/main/App.js';
 import { GetActivityTypes, CreateActivityType, UpdateActivityType, DeleteActivityType, ReorderActivityTypes } from './wailsjs/go/main/App.js';
 import { GetTrackingState, StartTracking, StopTracking } from './wailsjs/go/main/App.js';
-import { GetTodayStats, GetWeekStats, GetMonthStats } from './wailsjs/go/main/App.js';
 import { CheckIdlePeriod, AttributeIdle } from './wailsjs/go/main/App.js';
 import { ExportData, ImportData } from './wailsjs/go/main/App.js';
 import { SaveReportJSON, SaveReportText, ImportProjectJSON } from './wailsjs/go/main/App.js';
@@ -60,7 +59,6 @@ let statusCheckInProgress = false; // Debounce flag for status check
 document.addEventListener('DOMContentLoaded', async function() {
     await loadActivityTypes();
     await loadProjects();
-    await loadTodayStats();
     await checkTrackingStatus();
     setToday();
     await loadTimeline();
@@ -83,8 +81,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         const minutes = Math.floor((data.seconds || 0) / 60);
         showNotification(`Tracking fermato automaticamente (${minutes} min salvati)`, 'success');
 
-        // Ricarica statistiche e timeline
-        await loadTodayStats();
+        // Ricarica timeline
         await loadTimeline();
     });
 });
@@ -307,7 +304,6 @@ async function stopTracking() {
         showNotification('Tracking fermato e dati salvati', 'success');
         isCurrentlyTracking = false;
         updateUIForTracking(false);
-        await loadTodayStats();
         await loadTimeline();
     } catch (error) {
         console.error('Errore stop tracking:', error);
@@ -422,7 +418,6 @@ window.attributeIdleToProject = async function() {
         const projectName = projectsCache.find(p => p.id === projectID)?.name || 'Progetto';
         showNotification(`Tempo idle attribuito a: ${projectName}`, 'success');
         hideIdleModal();
-        await loadTodayStats();
         await loadTimeline();
     } catch (error) {
         console.error('Errore attribuzione idle:', error);
@@ -466,113 +461,6 @@ function updateUIForTracking(isTracking) {
         indicator.classList.remove('active');
         document.getElementById('currentStats').style.display = 'none';
     }
-}
-
-// === STATISTICHE ===
-
-let currentStatsPeriod = 'today';
-
-async function loadTodayStats() {
-    try {
-        const stats = await GetTodayStats();
-        displayStats(stats, 'Oggi');
-    } catch (error) {
-        console.error('Errore caricamento statistiche:', error);
-    }
-}
-
-window.showTodayStats = async function() {
-    currentStatsPeriod = 'today';
-    updateStatsButtons();
-    try {
-        const stats = await GetTodayStats();
-        displayStats(stats, 'Oggi');
-    } catch (error) {
-        console.error('Errore caricamento statistiche:', error);
-    }
-}
-
-window.showWeekStats = async function() {
-    currentStatsPeriod = 'week';
-    updateStatsButtons();
-    try {
-        const stats = await GetWeekStats();
-        displayStats(stats, 'Questa Settimana');
-    } catch (error) {
-        console.error('Errore caricamento statistiche:', error);
-    }
-}
-
-window.showMonthStats = async function() {
-    currentStatsPeriod = 'month';
-    updateStatsButtons();
-    try {
-        const stats = await GetMonthStats();
-        displayStats(stats, 'Questo Mese');
-    } catch (error) {
-        console.error('Errore caricamento statistiche:', error);
-    }
-}
-
-function updateStatsButtons() {
-    const todayBtn = document.getElementById('statsToday');
-    const weekBtn = document.getElementById('statsWeek');
-    const monthBtn = document.getElementById('statsMonth');
-
-    [todayBtn, weekBtn, monthBtn].forEach(btn => {
-        if (btn) {
-            btn.style.background = '#ffffff';
-            btn.style.color = '#1a1a1a';
-        }
-    });
-
-    if (currentStatsPeriod === 'today' && todayBtn) {
-        todayBtn.style.background = '#ff6b2b';
-        todayBtn.style.color = '#ffffff';
-    } else if (currentStatsPeriod === 'week' && weekBtn) {
-        weekBtn.style.background = '#ff6b2b';
-        weekBtn.style.color = '#ffffff';
-    } else if (currentStatsPeriod === 'month' && monthBtn) {
-        monthBtn.style.background = '#ff6b2b';
-        monthBtn.style.color = '#ffffff';
-    }
-}
-
-function displayStats(stats, periodLabel) {
-    const statsDiv = document.getElementById('todayStats');
-
-    if (!stats || Object.keys(stats).length === 0) {
-        statsDiv.innerHTML = `<p style="color: #6b7280;">Nessuna statistica disponibile per: ${periodLabel}</p>`;
-        return;
-    }
-
-    const total = Object.values(stats).reduce((sum, sec) => sum + sec, 0);
-    const totalMinutes = Math.floor(total / 60);
-    const totalHours = (total / 3600).toFixed(1);
-
-    statsDiv.innerHTML = `
-        <div class="stat-item">
-            <span class="stat-label"><strong>Totale ${periodLabel}</strong></span>
-            <span class="stat-value"><strong>${totalMinutes} min (${totalHours}h)</strong></span>
-        </div>
-        ${Object.entries(stats)
-            .sort((a, b) => b[1] - a[1])
-            .map(([app, seconds]) => {
-                const minutes = Math.floor(seconds / 60);
-                const percentage = ((seconds / total) * 100).toFixed(1);
-                return `
-                    <div class="stat-item">
-                        <span class="stat-label">${app}</span>
-                        <span class="stat-value">${minutes} min (${percentage}%)</span>
-                    </div>
-                `;
-            }).join('')}
-    `;
-}
-
-// Legacy function per backward compatibility
-function displayTodayStats(stats) {
-    displayStats(stats, 'Oggi');
 }
 
 // === TIMELINE ===
