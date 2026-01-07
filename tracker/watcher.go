@@ -294,9 +294,11 @@ func (w *TimeWatcher) Start(intervalSeconds int) {
 					var idleCallback OnIdleCallback
 					if !w.isIdle {
 						w.isIdle = true
-						w.idleStartTime = time.Now()
+						// Calcola il vero inizio dell'idle sottraendo il tempo già trascorso
+						w.idleStartTime = time.Now().Add(-time.Duration(idleTime) * time.Second)
 						idleCallback = w.onIdleCallback // Cattura callback prima di unlock
-						fmt.Printf("[IDLE] Sistema inattivo da %d secondi (soglia: %d sec)\n", idleTime, currentIdleThreshold)
+						fmt.Printf("[IDLE] Sistema inattivo da %d secondi (soglia: %d sec), inizio idle: %s\n",
+							idleTime, currentIdleThreshold, w.idleStartTime.Format("15:04:05"))
 					}
 					w.mu.Unlock()
 
