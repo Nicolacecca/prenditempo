@@ -858,6 +858,9 @@ window.saveProjectNote = async function() {
             project.note_text = noteText;
         }
 
+        // Rigenera l'HTML dei progetti per aggiornare i pulsanti delle note
+        displayProjects(projectsCache);
+
         closeProjectNoteModal();
     } catch (error) {
         console.error('Errore salvataggio note:', error);
