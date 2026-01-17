@@ -364,9 +364,9 @@ input[type="date"]::-webkit-calendar-picker-indicator {
     top: 100%;
     left: 50%;
     transform: translateX(-50%);
-    width: 1px;
+    width: 2px;
     height: 9999px;
-    background: rgba(255, 107, 43, 0.3);
+    background: rgba(255, 107, 43, 0.25);
     pointer-events: none;
     z-index: 100;
 }
@@ -401,78 +401,6 @@ input[type="date"]::-webkit-calendar-picker-indicator {
     transform: scaleY(1.1);
     z-index: 2;
     box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-}
-
-.timeline-hour-markers {
-    position: relative;
-    padding: 0 10px;
-    margin-bottom: 10px;
-    font-size: 0.8em;
-    color: #ff6b2b;
-    height: 20px;
-    z-index: 100;
-}
-
-.timeline-hour-marker {
-    position: absolute;
-    display: flex;
-    align-items: center;
-    transform: translateX(-50%);
-    z-index: 100;
-}
-
-.timeline-hour-marker::after {
-    content: '';
-    position: absolute;
-    top: 100%;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 1px;
-    height: 9999px;
-    background: rgba(255, 107, 43, 0.3);
-    pointer-events: none;
-    z-index: 100;
-}
-
-.note-marker {
-    position: absolute;
-    top: -15px;
-    bottom: 0;
-    z-index: 20;
-    cursor: pointer;
-}
-
-.note-marker-line {
-    width: 2px;
-    height: 100%;
-    background: #ff6b2b;
-    position: absolute;
-    left: 50%;
-    transform: translateX(-50%);
-}
-
-.note-marker-icon {
-    position: absolute;
-    top: -20px;
-    left: 50%;
-    transform: translateX(-50%);
-    background: #ff6b2b;
-    width: 28px;
-    height: 28px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 16px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-    border: 2px solid white;
-    cursor: pointer;
-    transition: transform 0.2s, box-shadow 0.2s;
-}
-
-.note-marker-icon:hover {
-    transform: translateX(-50%) scale(1.1);
-    box-shadow: 0 4px 12px rgba(255,107,43,0.4);
 }
 
 /* Modal Styles */

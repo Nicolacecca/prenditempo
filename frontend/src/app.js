@@ -1,7 +1,7 @@
 // Import Wails bindings
 import { GetProjects, CreateProject, ArchiveProject, GetProjectReport, GetArchivedProjects, ReactivateProject, DeleteProject, UpdateProject } from './wailsjs/go/main/App.js';
 import { GetSessions, CreateSession, UpdateSessionDuration, UpdateSessionActivityType, DeleteSession, SplitSession } from './wailsjs/go/main/App.js';
-import { GetNotes, GetAllNotes, CreateNote, UpdateNote, DeleteNote } from './wailsjs/go/main/App.js';
+import { UpdateProjectNote, MigrateLegacyNotes } from './wailsjs/go/main/App.js';
 import { GetActivityTypes, CreateActivityType, UpdateActivityType, DeleteActivityType, ReorderActivityTypes } from './wailsjs/go/main/App.js';
 import { GetTrackingState, StartTracking, StopTracking } from './wailsjs/go/main/App.js';
 import { CheckIdlePeriod, AttributeIdle } from './wailsjs/go/main/App.js';
@@ -9,6 +9,7 @@ import { ExportData, ImportData } from './wailsjs/go/main/App.js';
 import { SaveReportJSON, SaveReportText, ImportProjectJSON } from './wailsjs/go/main/App.js';
 import { IsAutoStartEnabled, EnableAutoStart, DisableAutoStart } from './wailsjs/go/main/App.js';
 import { SetIdleThreshold, GetIdleThreshold, BringWindowToFront, RestoreNormalWindow } from './wailsjs/go/main/App.js';
+import { UpdateSessionComplete, GetSessionById } from './wailsjs/go/main/App.js';
 import { EventsOn } from './wailsjs/runtime/runtime.js';
 
 // === UTILITY FUNCTIONS ===
@@ -45,8 +46,6 @@ function validateLength(text, maxLength, fieldName) {
 // Constants for validation
 const MAX_PROJECT_NAME_LENGTH = 100;
 const MAX_PROJECT_DESC_LENGTH = 500;
-const MAX_NOTE_LENGTH = 5000;
-const MAX_ACTIVITY_TYPE_LENGTH = 50;
 
 // Variabili globali
 let currentReportProjectId = null;
@@ -60,10 +59,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     await loadActivityTypes();
     await loadProjects();
     await checkTrackingStatus();
-    setToday();
-    await loadTimeline();
-    await loadAllNotes();
-    await populateNotesProjectFilter();
+    setToday(); // setToday già chiama loadTimeline()
 
     // Aggiorna stato ogni 2 secondi (ridotto per mostrare il modale idle più velocemente)
     setInterval(checkTrackingStatus, 2000);
@@ -134,6 +130,8 @@ function displayProjects(projects) {
     projectList.innerHTML = projects.map(project => {
         const escapedName = escapeJs(project.name);
         const escapedDesc = escapeJs(project.description || '');
+        const escapedNoteText = escapeJs(project.note_text || '');
+        const hasNote = project.note_text && project.note_text.trim().length > 0;
         return `
         <div class="project-item">
             <div>
@@ -141,10 +139,11 @@ function displayProjects(projects) {
                 ${project.description ? `<p>${escapeHtml(project.description)}</p>` : ''}
             </div>
             <div style="display: flex; gap: 10px;">
+                <button class="btn" style="width: auto; padding: 8px 16px; margin: 0; background: ${hasNote ? '#10b981' : '#6b7280'};"
+                        onclick="openProjectNoteModal(${project.id}, '${escapedName}', '${escapedNoteText}')"
+                        title="${hasNote ? 'Modifica note' : 'Aggiungi note'}">📝 Note</button>
                 <button class="btn" style="width: auto; padding: 8px 16px; margin: 0; background: #3b82f6;"
                         onclick="openEditProjectModal(${project.id}, '${escapedName}', '${escapedDesc}')">Modifica</button>
-                <button class="btn" style="width: auto; padding: 8px 16px; margin: 0; background: #f59e0b;"
-                        onclick="archiveProject(${project.id}, '${escapedName}')">Chiudi Progetto</button>
             </div>
         </div>
     `;
@@ -264,6 +263,14 @@ window.archiveProject = async function(projectID, projectName) {
         console.error('Errore archiviazione progetto:', error);
         showNotification('Errore: ' + error, 'error');
     }
+}
+
+window.archiveProjectFromModal = async function() {
+    const projectID = parseInt(document.getElementById('editProjectId').value);
+    const projectName = document.getElementById('editProjectName').value;
+
+    closeEditProjectModal();
+    await archiveProject(projectID, projectName);
 }
 
 // === TRACKING ===
@@ -493,19 +500,16 @@ window.loadTimeline = async function() {
     }
 
     try {
-        const [sessions, notes] = await Promise.all([
-            GetSessions(startDate, endDate),
-            GetNotes(startDate, endDate)
-        ]);
+        const sessions = await GetSessions(startDate, endDate);
 
-        displayTimeline(sessions || [], notes || [], startDate, endDate);
+        displayTimeline(sessions || [], startDate, endDate);
     } catch (error) {
         console.error('Errore caricamento timeline:', error);
         showNotification('Errore caricamento timeline', 'error');
     }
 }
 
-function displayTimeline(sessions, notes, startDate, endDate) {
+function displayTimeline(sessions, startDate, endDate) {
     const content = document.getElementById('timelineContent');
 
     if (!sessions || sessions.length === 0) {
@@ -557,10 +561,10 @@ function displayTimeline(sessions, notes, startDate, endDate) {
             const hourMs = hour * 60 * 60 * 1000;
             const percentage = (hourMs / totalMs) * 100;
             const spanStyle = hour === 0 ? 'style="position: relative; left: 50%;"' : '';
-            html += `<div class="timeline-hour-marker" style="left: ${percentage}%;"><span ${spanStyle}>${String(hour).padStart(2, '0')}:00</span></div>`;
+            html += `<div class="timeline-hour-marker" style="left: ${percentage}%;"><span ${spanStyle}>${hour}</span></div>`;
         }
-        // Aggiungi marker per 23:59
-        html += `<div class="timeline-hour-marker" style="left: 100%;"><span style="position: relative; right: 50%;">23:59</span></div>`;
+        // Aggiungi marker per 24 (fine giornata)
+        html += `<div class="timeline-hour-marker" style="left: 100%;"><span style="position: relative; right: 50%;">24</span></div>`;
     } else if (numDays <= 7) {
         // Timeline settimanale: mostra giorni
         for (let d = 0; d <= numDays; d++) {
@@ -618,7 +622,6 @@ function displayTimeline(sessions, notes, startDate, endDate) {
     // Timeline per ogni progetto
     uniqueProjects.forEach(projectName => {
         const projectSessions = sessionsByProject[projectName] || [];
-        const projectNotes = notes ? notes.filter(n => n.project_name === projectName) : [];
 
         // Label del progetto (con background per interrompere le linee dei marker)
         html += `<div style="margin-top: 15px; margin-bottom: 5px; font-weight: 600; color: #ffffff; position: relative; z-index: 200; background: #242424; padding: 5px 0;">`;
@@ -630,12 +633,6 @@ function displayTimeline(sessions, notes, startDate, endDate) {
         projectSessions.forEach(session => {
             const segment = createTimelineSegment(session, startTime, totalMs);
             html += segment;
-        });
-
-        // Indicatori note
-        projectNotes.forEach(note => {
-            const noteMarker = createNoteMarker(note, startTime, totalMs);
-            html += noteMarker;
         });
 
         html += '</div>';
@@ -699,76 +696,6 @@ function displayTimeline(sessions, notes, startDate, endDate) {
     content.innerHTML = html;
 }
 
-function createNoteMarker(note, startTime, totalMs) {
-    if (!note.timestamp) return '';
-
-    // Parse timestamp trattandolo sempre come ora locale
-    let noteTime;
-    let displayHours, displayMinutes, displayDay, displayMonth;
-
-    if (note.timestamp.includes('T')) {
-        // Formato ISO: estrai i componenti direttamente dalla stringa
-        const isoMatch = note.timestamp.match(/(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):?(\d{2})?/);
-        if (isoMatch) {
-            const [, year, month, day, hours, minutes, seconds] = isoMatch.map(Number);
-            noteTime = new Date(year, month - 1, day, hours, minutes, seconds || 0);
-            displayHours = hours;
-            displayMinutes = minutes;
-            displayDay = day;
-            displayMonth = month;
-        } else {
-            noteTime = new Date(note.timestamp);
-            displayHours = noteTime.getHours();
-            displayMinutes = noteTime.getMinutes();
-            displayDay = noteTime.getDate();
-            displayMonth = noteTime.getMonth() + 1;
-        }
-    } else {
-        // Formato SQLite: "2025-01-15 14:30:00"
-        const parts = note.timestamp.split(' ');
-        const datePart = parts[0];
-        const timePart = parts[1] || '12:00:00';
-        const [year, month, day] = datePart.split('-').map(Number);
-        const [hours, minutes, seconds] = timePart.split(':').map(Number);
-        noteTime = new Date(year, month - 1, day, hours, minutes, seconds || 0);
-        displayHours = hours;
-        displayMinutes = minutes;
-        displayDay = day;
-        displayMonth = month;
-    }
-
-    const noteMs = noteTime - startTime;
-    const left = (noteMs / totalMs) * 100;
-
-    const timeStr = `${String(displayHours).padStart(2, '0')}:${String(displayMinutes).padStart(2, '0')}`;
-    const dateStr = `${displayDay}/${displayMonth}`;
-
-    const noteText = note.note_text || '';
-    // Tronca il testo della nota se troppo lungo
-    const notePreview = noteText.length > 100
-        ? noteText.substring(0, 100) + '...'
-        : noteText;
-
-    // Costruisci testo per il tooltip nativo (escaped)
-    const tooltipText = `📝 NOTA\n${dateStr} ${timeStr}\n\n${escapeHtml(notePreview)}`;
-
-    // Escape note text for onclick handler
-    const escapedNoteText = escapeJs(noteText);
-    const escapedTimestamp = escapeJs(`${dateStr} ${timeStr}`);
-
-    return `
-        <div class="note-marker" style="left: ${left}%;" title="${escapeHtml(tooltipText).replace(/"/g, '&quot;')}">
-            <!-- Linea verticale -->
-            <div class="note-marker-line"></div>
-
-            <!-- Icona nota sopra la timeline -->
-            <div class="note-marker-icon" onclick="editNoteFromTimeline(${parseInt(note.id)}, '${escapedNoteText}', '${escapedTimestamp}')">
-                📝
-            </div>
-        </div>
-    `;
-}
-
 function createTimelineSegment(session, startTime, totalMs) {
     if (!session.timestamp) return '';
 
@@ -824,7 +751,10 @@ function createTimelineSegment(session, startTime, totalMs) {
     const activityTypeObj = activityTypes.find(t => t.name === activityTypeName);
     let bgStyle = 'background: #ffffff;';
 
-    if (activityTypeObj) {
+    // Se il tipo attività è "Nessuna" (null/vuoto), usa arancione semi-trasparente
+    if (activityTypeName === 'Nessuna' || !activityTypeName) {
+        bgStyle = 'background: rgba(255, 107, 43, 0.5);'; // Arancione semi-trasparente
+    } else if (activityTypeObj) {
         const colorVariant = activityTypeObj.color_variant || 0;
         const pattern = activityTypeObj.pattern || 'solid';
 
@@ -867,199 +797,87 @@ function formatDate(dateStr) {
     return `${date.getDate()}/${date.getMonth() + 1}/${date.getFullYear()}`;
 }
 
-// === NOTE ===
+// === NOTE PROGETTO (MARKDOWN) ===
 
-window.openNoteModal = async function() {
-    const modal = document.getElementById('noteModal');
-    const noteSelect = document.getElementById('noteProjectSelect');
+let projectNoteEditor = null;
 
-    noteSelect.innerHTML = '<option value="">Seleziona progetto...</option>';
-    projectsCache.forEach(project => {
-        const option = document.createElement('option');
-        option.value = project.id;
-        option.textContent = project.name;
-        noteSelect.appendChild(option);
-    });
+window.openProjectNoteModal = function(projectId, projectName, noteText) {
+    document.getElementById('projectNoteProjectId').value = projectId;
+    document.getElementById('projectNoteProjectName').textContent = projectName;
+    document.getElementById('projectNoteModal').classList.add('show');
 
-    document.getElementById('noteText').value = '';
-    modal.classList.add('show');
-}
+    // Inizializza EasyMDE se non esiste già
+    setTimeout(() => {
+        if (projectNoteEditor) {
+            projectNoteEditor.toTextArea();
+            projectNoteEditor = null;
+        }
 
-window.closeNoteModal = function() {
-    document.getElementById('noteModal').classList.remove('show');
-}
+        const textarea = document.getElementById('projectNoteEditor');
+        textarea.value = noteText || '';
 
-window.saveNote = async function() {
-    const projectID = parseInt(document.getElementById('noteProjectSelect').value);
-    const noteText = document.getElementById('noteText').value.trim();
-
-    if (!projectID) {
-        showNotification('Seleziona un progetto', 'error');
-        return;
-    }
-
-    if (!noteText) {
-        showNotification('Inserisci il testo della nota', 'error');
-        return;
-    }
-
-    try {
-        const now = new Date();
-        const timestamp = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
-
-        await CreateNote(projectID, noteText, timestamp);
-        showNotification('Nota creata con successo!', 'success');
-        closeNoteModal();
-        await loadTimeline();
-        await loadAllNotes();
-    } catch (error) {
-        console.error('Errore creazione nota:', error);
-        showNotification('Errore: ' + error, 'error');
-    }
-}
-
-window.loadAllNotes = async function() {
-    try {
-        const filterElement = document.getElementById('notesFilterProject');
-        const searchElement = document.getElementById('notesSearchText');
-        const contentElement = document.getElementById('notesListContent');
-
-        if (!filterElement || !searchElement || !contentElement) return;
-
-        const projectID = filterElement.value || '';
-        const searchText = searchElement.value || '';
-
-        const notes = await GetAllNotes(projectID, searchText, '50');
-        displayNotesList(notes || []);
-    } catch (error) {
-        console.error('Errore caricamento note:', error);
-    }
-}
-
-async function displayNotesList(notes) {
-    const container = document.getElementById('notesListContent');
-
-    if (!notes || notes.length === 0) {
-        container.innerHTML = '<p style="color: #6b7280;">Nessuna nota trovata</p>';
-        return;
-    }
-
-    let html = '<div style="display: flex; flex-direction: column; gap: 12px;">';
-
-    notes.forEach(note => {
-        const projectName = escapeHtml(note.project_name || 'Progetto sconosciuto');
-        const timestamp = new Date(note.timestamp);
-        const dateStr = timestamp.toLocaleDateString('it-IT');
-        const timeStr = timestamp.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
-
-        const escapedNoteText = escapeJs(note.note_text || '');
-        const displayNoteText = escapeHtml(note.note_text || '');
-
-        html += `
-            <div style="background: #1a1a1a; padding: 15px; border-radius: 8px; border-left: 4px solid #ff6b2b; border: 1px solid #3a3a3a;">
-                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px;">
-                    <div>
-                        <strong style="color: #ff6b2b; font-size: 1.05em;">${projectName}</strong>
-                        <span style="color: #999999; font-size: 0.85em; margin-left: 10px;">${dateStr} ${timeStr}</span>
-                    </div>
-                    <div style="display: flex; gap: 8px;">
-                        <button onclick="editNoteFromList(${parseInt(note.id)}, '${escapedNoteText}', ${parseInt(note.project_id)})"
-                                style="padding: 5px 12px; background: #ff6b2b; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.85em;">
-                            Modifica
-                        </button>
-                        <button onclick="deleteNoteFromList(${parseInt(note.id)})"
-                                style="padding: 5px 12px; background: #ef4444; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.85em;">
-                            Elimina
-                        </button>
-                    </div>
-                </div>
-                <p style="color: #ffffff; margin: 0; white-space: pre-wrap;">${displayNoteText}</p>
-            </div>
-        `;
-    });
-
-    html += '</div>';
-    container.innerHTML = html;
-}
-
-async function populateNotesProjectFilter() {
-    try {
-        const filterSelect = document.getElementById('notesFilterProject');
-        if (!filterSelect) return;
-
-        filterSelect.innerHTML = '<option value="">Tutti i progetti</option>';
-        projectsCache.forEach(project => {
-            filterSelect.innerHTML += `<option value="${project.id}">${project.name}</option>`;
+        projectNoteEditor = new EasyMDE({
+            element: textarea,
+            spellChecker: false,
+            autosave: {
+                enabled: false
+            },
+            toolbar: [
+                'bold', 'italic', 'heading', '|',
+                'quote', 'unordered-list', 'ordered-list', '|',
+                'link', 'image', '|',
+                'preview', 'side-by-side', 'fullscreen', '|',
+                'guide'
+            ],
+            placeholder: 'Scrivi le note del progetto in markdown...',
+            status: false,
+            minHeight: '300px'
         });
-    } catch (error) {
-        console.error('Errore caricamento progetti per filtro note:', error);
+    }, 100);
+}
+
+window.closeProjectNoteModal = function() {
+    if (projectNoteEditor) {
+        projectNoteEditor.toTextArea();
+        projectNoteEditor = null;
     }
+    document.getElementById('projectNoteModal').classList.remove('show');
 }
 
-window.editNoteFromList = function(noteID, noteText, projectID) {
-    document.getElementById('editNoteId').value = noteID;
-    document.getElementById('editNoteText').value = noteText;
-    document.getElementById('editNoteModal').classList.add('show');
-}
-
-window.editNoteFromTimeline = function(noteID, noteText, timestampStr) {
-    document.getElementById('editNoteId').value = noteID;
-    document.getElementById('editNoteText').value = noteText;
-    const timestampEl = document.getElementById('editNoteTimestamp');
-    if (timestampEl) {
-        timestampEl.textContent = timestampStr;
-    }
-    document.getElementById('editNoteModal').classList.add('show');
-}
-
-window.closeEditNoteModal = function() {
-    document.getElementById('editNoteModal').classList.remove('show');
-}
-
-window.updateNote = async function() {
-    const noteId = parseInt(document.getElementById('editNoteId').value);
-    const noteText = document.getElementById('editNoteText').value.trim();
-
-    if (!noteText) {
-        showNotification('Inserisci il testo della nota', 'error');
-        return;
-    }
+window.saveProjectNote = async function() {
+    const projectId = parseInt(document.getElementById('projectNoteProjectId').value);
+    const noteText = projectNoteEditor ? projectNoteEditor.value() : document.getElementById('projectNoteEditor').value;
 
     try {
-        await UpdateNote(noteId, noteText);
-        showNotification('Nota aggiornata!', 'success');
-        closeEditNoteModal();
-        await loadTimeline();
-        await loadAllNotes();
+        await UpdateProjectNote(projectId, noteText);
+        showNotification('Note salvate con successo!', 'success');
+
+        // Aggiorna la cache dei progetti
+        const project = projectsCache.find(p => p.id === projectId);
+        if (project) {
+            project.note_text = noteText;
+        }
+
+        closeProjectNoteModal();
     } catch (error) {
-        console.error('Errore aggiornamento nota:', error);
+        console.error('Errore salvataggio note:', error);
         showNotification('Errore: ' + error, 'error');
     }
 }
 
-window.deleteNoteFromModal = async function() {
-    const noteId = parseInt(document.getElementById('editNoteId').value);
-
+window.migrateLegacyNotes = async function() {
     try {
-        await DeleteNote(noteId);
-        showNotification('Nota eliminata!', 'success');
-        closeEditNoteModal();
-        await loadTimeline();
-        await loadAllNotes();
+        const count = await MigrateLegacyNotes();
+        if (count > 0) {
+            showNotification(`${count} note importate con successo!`, 'success');
+            // Ricarica i progetti per aggiornare le note
+            await loadProjects();
+        } else {
+            showNotification('Nessuna nota legacy trovata da importare', 'info');
+        }
     } catch (error) {
-        console.error('Errore eliminazione nota:', error);
+        console.error('Errore migrazione note:', error);
         showNotification('Errore: ' + error, 'error');
-    }
-}
-
-window.deleteNoteFromList = async function(noteID) {
-    try {
-        await DeleteNote(noteID);
-        showNotification('Nota eliminata!', 'success');
-        await loadAllNotes();
-    } catch (error) {
-        console.error('Errore eliminazione nota:', error);
-        showNotification('Errore eliminazione nota', 'error');
     }
 }
 
@@ -1087,26 +905,74 @@ window.createNewSession = async function() {
         activitySelect.innerHTML += `<option value="${type.name}">${type.name}</option>`;
     });
 
-    // Popola ore e minuti
-    const hourSelect = document.getElementById('sessionHour');
-    hourSelect.innerHTML = '';
-    for (let h = 0; h < 24; h++) {
-        hourSelect.innerHTML += `<option value="${h}">${String(h).padStart(2, '0')}</option>`;
-    }
+    // Popola ore e minuti per inizio e fine
+    const hourSelects = ['sessionStartHour', 'sessionEndHour'];
+    const minuteSelects = ['sessionStartMinute', 'sessionEndMinute'];
 
-    const minuteSelect = document.getElementById('sessionMinute');
-    minuteSelect.innerHTML = '';
-    for (let m = 0; m < 60; m++) {
-        minuteSelect.innerHTML += `<option value="${m}">${String(m).padStart(2, '0')}</option>`;
-    }
+    hourSelects.forEach(id => {
+        const select = document.getElementById(id);
+        select.innerHTML = '';
+        for (let h = 0; h < 24; h++) {
+            select.innerHTML += `<option value="${h}">${String(h).padStart(2, '0')}</option>`;
+        }
+    });
 
-    // Imposta data/ora corrente
+    minuteSelects.forEach(id => {
+        const select = document.getElementById(id);
+        select.innerHTML = '';
+        for (let m = 0; m < 60; m++) {
+            select.innerHTML += `<option value="${m}">${String(m).padStart(2, '0')}</option>`;
+        }
+    });
+
+    // Imposta data/ora corrente come fine, un'ora prima come inizio
     const now = new Date();
-    document.getElementById('sessionDate').value = now.toISOString().split('T')[0];
-    hourSelect.value = now.getHours();
-    minuteSelect.value = now.getMinutes();
+    const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
 
+    document.getElementById('sessionStartDate').value = oneHourAgo.toISOString().split('T')[0];
+    document.getElementById('sessionStartHour').value = oneHourAgo.getHours();
+    document.getElementById('sessionStartMinute').value = oneHourAgo.getMinutes();
+
+    document.getElementById('sessionEndDate').value = now.toISOString().split('T')[0];
+    document.getElementById('sessionEndHour').value = now.getHours();
+    document.getElementById('sessionEndMinute').value = now.getMinutes();
+
+    // Aggiungi listener per calcolare la durata
+    const updateDuration = () => updateNewSessionDuration();
+    ['sessionStartDate', 'sessionStartHour', 'sessionStartMinute', 'sessionEndDate', 'sessionEndHour', 'sessionEndMinute'].forEach(id => {
+        document.getElementById(id).addEventListener('change', updateDuration);
+    });
+
+    updateNewSessionDuration();
     document.getElementById('createSessionModal').classList.add('show');
+}
+
+function updateNewSessionDuration() {
+    const startDate = document.getElementById('sessionStartDate').value;
+    const startHour = parseInt(document.getElementById('sessionStartHour').value);
+    const startMinute = parseInt(document.getElementById('sessionStartMinute').value);
+    const endDate = document.getElementById('sessionEndDate').value;
+    const endHour = parseInt(document.getElementById('sessionEndHour').value);
+    const endMinute = parseInt(document.getElementById('sessionEndMinute').value);
+
+    if (!startDate || !endDate) {
+        document.getElementById('sessionCalculatedDuration').textContent = '--';
+        return;
+    }
+
+    const start = new Date(`${startDate}T${String(startHour).padStart(2, '0')}:${String(startMinute).padStart(2, '0')}:00`);
+    const end = new Date(`${endDate}T${String(endHour).padStart(2, '0')}:${String(endMinute).padStart(2, '0')}:00`);
+
+    const diffSeconds = Math.floor((end - start) / 1000);
+
+    if (diffSeconds <= 0) {
+        document.getElementById('sessionCalculatedDuration').textContent = 'Non valida';
+        return;
+    }
+
+    const hours = Math.floor(diffSeconds / 3600);
+    const minutes = Math.floor((diffSeconds % 3600) / 60);
+    document.getElementById('sessionCalculatedDuration').textContent = `${hours}h ${minutes}m`;
 }
 
 window.closeCreateSessionModal = function() {
@@ -1121,22 +987,29 @@ window.saveNewSession = async function() {
     }
     const projectId = parseInt(projectRadio.value);
 
-    const durationMinutes = parseInt(document.getElementById('sessionDuration').value);
-    if (isNaN(durationMinutes) || durationMinutes <= 0) {
-        showNotification('Durata non valida', 'error');
-        return;
-    }
-    const seconds = durationMinutes * 60;
+    const startDate = document.getElementById('sessionStartDate').value;
+    const startHour = parseInt(document.getElementById('sessionStartHour').value);
+    const startMinute = parseInt(document.getElementById('sessionStartMinute').value);
+    const endDate = document.getElementById('sessionEndDate').value;
+    const endHour = parseInt(document.getElementById('sessionEndHour').value);
+    const endMinute = parseInt(document.getElementById('sessionEndMinute').value);
 
-    const dateValue = document.getElementById('sessionDate').value;
-    const hourValue = document.getElementById('sessionHour').value;
-    const minuteValue = document.getElementById('sessionMinute').value;
-    if (!dateValue) {
-        showNotification('Inserisci la data', 'error');
+    if (!startDate || !endDate) {
+        showNotification('Inserisci data di inizio e fine', 'error');
         return;
     }
 
-    const timestamp = `${dateValue} ${String(hourValue).padStart(2, '0')}:${String(minuteValue).padStart(2, '0')}:00`;
+    const start = new Date(`${startDate}T${String(startHour).padStart(2, '0')}:${String(startMinute).padStart(2, '0')}:00`);
+    const end = new Date(`${endDate}T${String(endHour).padStart(2, '0')}:${String(endMinute).padStart(2, '0')}:00`);
+
+    const seconds = Math.floor((end - start) / 1000);
+
+    if (seconds <= 0) {
+        showNotification('La data/ora di fine deve essere successiva all\'inizio', 'error');
+        return;
+    }
+
+    const timestamp = `${startDate} ${String(startHour).padStart(2, '0')}:${String(startMinute).padStart(2, '0')}:00`;
     const activityType = document.getElementById('sessionActivityType').value || null;
 
     try {
@@ -1157,39 +1030,12 @@ window.showSessionMenu = function(event, sessionID, seconds, activityType, proje
     sessionID = parseInt(sessionID);
     seconds = parseInt(seconds);
 
-    // Escape values for display and onclick handlers
-    const escapedProjectName = escapeJs(projectName || '');
-    const escapedActivityType = escapeJs(activityType || '');
-    const displayProjectName = escapeHtml(projectName || '');
-
     // Rimuovi menu esistente
     const existingMenu = document.getElementById('contextMenu');
     if (existingMenu) existingMenu.remove();
 
-    const menuDiv = document.createElement('div');
-    menuDiv.id = 'contextMenu';
-    menuDiv.style.cssText = `position: fixed; left: ${event.clientX}px; top: ${event.clientY}px; background: white; border: 1px solid #ccc; border-radius: 4px; box-shadow: 0 4px 20px rgba(0,0,0,0.3); z-index: 999999; min-width: 200px; padding: 0;`;
-
-    menuDiv.innerHTML = `
-        <div style="padding: 8px; border-bottom: 1px solid #eee; background: #f5f5f5; font-weight: bold;">${displayProjectName}</div>
-        <div style="padding: 4px 0;">
-            <button onclick="editActivityType(${sessionID}, '${escapedActivityType}', '${escapedProjectName}')" style="width: 100%; padding: 8px 12px; border: none; background: none; text-align: left; cursor: pointer;">Modifica tipo attività</button>
-            <button onclick="editSessionDuration(${sessionID}, ${seconds}, '${escapedProjectName}')" style="width: 100%; padding: 8px 12px; border: none; background: none; text-align: left; cursor: pointer;">Modifica durata</button>
-            <button onclick="splitSessionDialog(${sessionID}, ${seconds}, '${escapedActivityType}', '${escapedProjectName}')" style="width: 100%; padding: 8px 12px; border: none; background: none; text-align: left; cursor: pointer;">Dividi sessione</button>
-            <hr style="margin: 4px 0; border: none; border-top: 1px solid #eee;">
-            <button onclick="deleteSession(${sessionID}, '${escapedProjectName}')" style="width: 100%; padding: 8px 12px; border: none; background: none; text-align: left; cursor: pointer; color: #d32f2f;">Elimina sessione</button>
-        </div>
-    `;
-
-    menuDiv.onclick = (e) => e.stopPropagation();
-    document.body.appendChild(menuDiv);
-
-    setTimeout(() => {
-        document.addEventListener('click', () => {
-            const menu = document.getElementById('contextMenu');
-            if (menu) menu.remove();
-        }, { once: true });
-    }, 100);
+    // Apri direttamente il modal unificato
+    openEditSessionUnifiedModal(sessionID);
 }
 
 // === SPLIT SESSION ===
@@ -1377,6 +1223,339 @@ window.deleteSession = async function(sessionID, projectName) {
         `Eliminare sessione di "${projectName}"?`,
         'La sessione verrà eliminata definitivamente.'
     );
+}
+
+// === MODAL UNIFICATO MODIFICA SESSIONE ===
+
+// Variabile per memorizzare i dati della sessione corrente
+let currentEditSession = null;
+
+window.openEditSessionUnifiedModal = async function(sessionID) {
+    try {
+        // Carica i dati della sessione
+        const session = await GetSessionById(sessionID);
+        currentEditSession = session;
+
+        // Imposta i valori nel modal
+        document.getElementById('editSessionUnifiedId').value = sessionID;
+        document.getElementById('editSessionUnifiedProject').textContent = session.project_name || 'Nessun progetto';
+
+        // Calcola durata
+        const minutes = Math.floor(session.seconds / 60);
+        document.getElementById('editSessionUnifiedCurrentDuration').textContent = `${minutes} minuti`;
+
+        // Parsa il timestamp
+        const startTime = parseSessionTimestamp(session.timestamp);
+        const endTime = new Date(startTime.getTime() + session.seconds * 1000);
+
+        // Mostra periodo corrente
+        const startStr = formatTimeHHMM(startTime);
+        const endStr = formatTimeHHMM(endTime);
+        document.getElementById('editSessionUnifiedCurrentPeriod').textContent = `${startStr} - ${endStr}`;
+
+        // Popola i selettori di ore e minuti
+        populateTimeSelectors();
+
+        // Imposta data e ora di inizio
+        document.getElementById('editSessionUnifiedStartDate').value = formatDateYYYYMMDD(startTime);
+        document.getElementById('editSessionUnifiedStartHour').value = startTime.getHours();
+        document.getElementById('editSessionUnifiedStartMinute').value = startTime.getMinutes();
+
+        // Imposta data e ora di fine
+        document.getElementById('editSessionUnifiedEndDate').value = formatDateYYYYMMDD(endTime);
+        document.getElementById('editSessionUnifiedEndHour').value = endTime.getHours();
+        document.getElementById('editSessionUnifiedEndMinute').value = endTime.getMinutes();
+
+        // Imposta data e ora del punto di divisione (metà sessione)
+        const splitTime = new Date(startTime.getTime() + (session.seconds / 2) * 1000);
+        document.getElementById('editSessionUnifiedSplitDate').value = formatDateYYYYMMDD(splitTime);
+        document.getElementById('editSessionUnifiedSplitHour').value = splitTime.getHours();
+        document.getElementById('editSessionUnifiedSplitMinute').value = splitTime.getMinutes();
+
+        // Popola select tipi attività
+        const activitySelect = document.getElementById('editSessionUnifiedActivityType');
+        const firstTypeSelect = document.getElementById('editSessionUnifiedFirstType');
+        const secondTypeSelect = document.getElementById('editSessionUnifiedSecondType');
+
+        activitySelect.innerHTML = '<option value="">Nessuno</option>';
+        firstTypeSelect.innerHTML = '<option value="">Nessuno</option>';
+        secondTypeSelect.innerHTML = '<option value="">Nessuno</option>';
+
+        activityTypes.forEach(type => {
+            const selected = type.name === session.activity_type ? 'selected' : '';
+            activitySelect.innerHTML += `<option value="${escapeHtml(type.name)}" ${selected}>${escapeHtml(type.name)}</option>`;
+            const firstSelected = type.name === session.activity_type ? 'selected' : '';
+            firstTypeSelect.innerHTML += `<option value="${escapeHtml(type.name)}" ${firstSelected}>${escapeHtml(type.name)}</option>`;
+            secondTypeSelect.innerHTML += `<option value="${escapeHtml(type.name)}">${escapeHtml(type.name)}</option>`;
+        });
+
+        // Reset modalità a "Fine"
+        document.querySelector('input[name="editSessionUnifiedMode"][value="end"]').checked = true;
+        toggleEditSessionMode();
+
+        // Aggiorna calcoli durata
+        updateUnifiedDurationCalc();
+
+        // Mostra modal
+        document.getElementById('editSessionUnifiedModal').classList.add('show');
+
+    } catch (error) {
+        console.error('Errore apertura modal unificato:', error);
+        showNotification('Errore caricamento sessione', 'error');
+    }
+}
+
+window.closeEditSessionUnifiedModal = function() {
+    document.getElementById('editSessionUnifiedModal').classList.remove('show');
+    currentEditSession = null;
+}
+
+window.selectRadioOption = function(label, value) {
+    // Rimuovi selected da tutti i radio-option nello stesso gruppo
+    const parent = label.parentElement;
+    parent.querySelectorAll('.radio-option').forEach(opt => opt.classList.remove('selected'));
+    // Aggiungi selected all'opzione cliccata
+    label.classList.add('selected');
+    // Seleziona il radio button
+    const radio = label.querySelector('input[type="radio"]');
+    radio.checked = true;
+    // Trigger change event
+    radio.dispatchEvent(new Event('change'));
+}
+
+window.toggleEditSessionMode = function() {
+    const mode = document.querySelector('input[name="editSessionUnifiedMode"]:checked').value;
+
+    if (mode === 'end') {
+        document.getElementById('editSessionUnifiedEndSection').style.display = 'block';
+        document.getElementById('editSessionUnifiedSplitSection').style.display = 'none';
+        document.getElementById('editSessionUnifiedActivitySection').style.display = 'block';
+    } else {
+        document.getElementById('editSessionUnifiedEndSection').style.display = 'none';
+        document.getElementById('editSessionUnifiedSplitSection').style.display = 'block';
+        document.getElementById('editSessionUnifiedActivitySection').style.display = 'none';
+    }
+}
+
+window.confirmEditSessionUnified = async function() {
+    const sessionID = parseInt(document.getElementById('editSessionUnifiedId').value);
+    const mode = document.querySelector('input[name="editSessionUnifiedMode"]:checked').value;
+
+    // Ottieni orario di inizio
+    const startDate = document.getElementById('editSessionUnifiedStartDate').value;
+    const startHour = parseInt(document.getElementById('editSessionUnifiedStartHour').value);
+    const startMinute = parseInt(document.getElementById('editSessionUnifiedStartMinute').value);
+    const startTime = new Date(`${startDate}T${String(startHour).padStart(2, '0')}:${String(startMinute).padStart(2, '0')}:00`);
+
+    if (mode === 'end') {
+        // Modalità modifica fine
+        const endDate = document.getElementById('editSessionUnifiedEndDate').value;
+        const endHour = parseInt(document.getElementById('editSessionUnifiedEndHour').value);
+        const endMinute = parseInt(document.getElementById('editSessionUnifiedEndMinute').value);
+        const endTime = new Date(`${endDate}T${String(endHour).padStart(2, '0')}:${String(endMinute).padStart(2, '0')}:00`);
+
+        // Calcola nuova durata
+        const newSeconds = Math.floor((endTime - startTime) / 1000);
+        if (newSeconds <= 0) {
+            showNotification('L\'orario di fine deve essere successivo all\'orario di inizio', 'error');
+            return;
+        }
+
+        const activityType = document.getElementById('editSessionUnifiedActivityType').value || null;
+        const newTimestamp = startTime.getFullYear() + '-' +
+            String(startTime.getMonth() + 1).padStart(2, '0') + '-' +
+            String(startTime.getDate()).padStart(2, '0') + ' ' +
+            String(startTime.getHours()).padStart(2, '0') + ':' +
+            String(startTime.getMinutes()).padStart(2, '0') + ':00';
+
+        try {
+            await UpdateSessionComplete(sessionID, newTimestamp, newSeconds, activityType);
+            showNotification('Sessione aggiornata!', 'success');
+            closeEditSessionUnifiedModal();
+            await loadTimeline();
+        } catch (error) {
+            console.error('Errore aggiornamento sessione:', error);
+            showNotification('Errore: ' + error, 'error');
+        }
+    } else {
+        // Modalità divisione
+        const splitDate = document.getElementById('editSessionUnifiedSplitDate').value;
+        const splitHour = parseInt(document.getElementById('editSessionUnifiedSplitHour').value);
+        const splitMinute = parseInt(document.getElementById('editSessionUnifiedSplitMinute').value);
+        const splitTime = new Date(`${splitDate}T${String(splitHour).padStart(2, '0')}:${String(splitMinute).padStart(2, '0')}:00`);
+
+        // Calcola durata prima parte
+        const firstPartSeconds = Math.floor((splitTime - startTime) / 1000);
+        if (firstPartSeconds <= 0) {
+            showNotification('Il punto di divisione deve essere dopo l\'inizio', 'error');
+            return;
+        }
+
+        // Prima aggiorna il timestamp di inizio se è cambiato
+        const originalStartTime = parseSessionTimestamp(currentEditSession.timestamp);
+        if (startTime.getTime() !== originalStartTime.getTime()) {
+            const newTimestamp = startTime.getFullYear() + '-' +
+                String(startTime.getMonth() + 1).padStart(2, '0') + '-' +
+                String(startTime.getDate()).padStart(2, '0') + ' ' +
+                String(startTime.getHours()).padStart(2, '0') + ':' +
+                String(startTime.getMinutes()).padStart(2, '0') + ':00';
+
+            try {
+                await UpdateSessionComplete(sessionID, newTimestamp, currentEditSession.seconds, currentEditSession.activity_type || null);
+            } catch (error) {
+                console.error('Errore aggiornamento timestamp:', error);
+                showNotification('Errore aggiornamento: ' + error, 'error');
+                return;
+            }
+        }
+
+        const firstActivityType = document.getElementById('editSessionUnifiedFirstType').value || null;
+        const secondActivityType = document.getElementById('editSessionUnifiedSecondType').value || null;
+
+        try {
+            await SplitSession(sessionID, firstPartSeconds, firstActivityType, secondActivityType);
+            showNotification('Sessione divisa!', 'success');
+            closeEditSessionUnifiedModal();
+            await loadTimeline();
+        } catch (error) {
+            console.error('Errore divisione sessione:', error);
+            showNotification('Errore: ' + error, 'error');
+        }
+    }
+}
+
+window.deleteSessionFromUnified = function() {
+    const sessionID = parseInt(document.getElementById('editSessionUnifiedId').value);
+    const projectName = document.getElementById('editSessionUnifiedProject').textContent;
+
+    closeEditSessionUnifiedModal();
+
+    showConfirmDeleteModal(
+        sessionID,
+        'session',
+        `Eliminare sessione di "${projectName}"?`,
+        'La sessione verrà eliminata definitivamente.'
+    );
+}
+
+// Funzioni helper per il modal unificato
+function populateTimeSelectors() {
+    const hourSelects = [
+        document.getElementById('editSessionUnifiedStartHour'),
+        document.getElementById('editSessionUnifiedEndHour'),
+        document.getElementById('editSessionUnifiedSplitHour')
+    ];
+    const minuteSelects = [
+        document.getElementById('editSessionUnifiedStartMinute'),
+        document.getElementById('editSessionUnifiedEndMinute'),
+        document.getElementById('editSessionUnifiedSplitMinute')
+    ];
+
+    hourSelects.forEach(select => {
+        select.innerHTML = '';
+        for (let h = 0; h < 24; h++) {
+            select.innerHTML += `<option value="${h}">${String(h).padStart(2, '0')}</option>`;
+        }
+    });
+
+    minuteSelects.forEach(select => {
+        select.innerHTML = '';
+        for (let m = 0; m < 60; m++) {
+            select.innerHTML += `<option value="${m}">${String(m).padStart(2, '0')}</option>`;
+        }
+    });
+
+    // Aggiungi event listener per aggiornare i calcoli quando cambiano i valori
+    const allInputs = [
+        ...hourSelects,
+        ...minuteSelects,
+        document.getElementById('editSessionUnifiedStartDate'),
+        document.getElementById('editSessionUnifiedEndDate'),
+        document.getElementById('editSessionUnifiedSplitDate')
+    ];
+
+    allInputs.forEach(input => {
+        input.addEventListener('change', updateUnifiedDurationCalc);
+    });
+}
+
+function updateUnifiedDurationCalc() {
+    const startDate = document.getElementById('editSessionUnifiedStartDate').value;
+    const startHour = parseInt(document.getElementById('editSessionUnifiedStartHour').value);
+    const startMinute = parseInt(document.getElementById('editSessionUnifiedStartMinute').value);
+
+    if (!startDate) return;
+
+    const startTime = new Date(`${startDate}T${String(startHour).padStart(2, '0')}:${String(startMinute).padStart(2, '0')}:00`);
+
+    // Calcola nuova durata per modalità Fine
+    const endDate = document.getElementById('editSessionUnifiedEndDate').value;
+    const endHour = parseInt(document.getElementById('editSessionUnifiedEndHour').value);
+    const endMinute = parseInt(document.getElementById('editSessionUnifiedEndMinute').value);
+
+    if (endDate) {
+        const endTime = new Date(`${endDate}T${String(endHour).padStart(2, '0')}:${String(endMinute).padStart(2, '0')}:00`);
+        const newSeconds = Math.floor((endTime - startTime) / 1000);
+        const newMinutes = Math.floor(newSeconds / 60);
+
+        if (newSeconds > 0) {
+            document.getElementById('editSessionUnifiedNewDuration').textContent = `${newMinutes} minuti`;
+        } else {
+            document.getElementById('editSessionUnifiedNewDuration').textContent = 'Non valido';
+        }
+    }
+
+    // Calcola durate per modalità Divisione
+    const splitDate = document.getElementById('editSessionUnifiedSplitDate').value;
+    const splitHour = parseInt(document.getElementById('editSessionUnifiedSplitHour').value);
+    const splitMinute = parseInt(document.getElementById('editSessionUnifiedSplitMinute').value);
+
+    if (splitDate && currentEditSession) {
+        const splitTime = new Date(`${splitDate}T${String(splitHour).padStart(2, '0')}:${String(splitMinute).padStart(2, '0')}:00`);
+        const firstPartSeconds = Math.floor((splitTime - startTime) / 1000);
+        const firstPartMinutes = Math.floor(firstPartSeconds / 60);
+
+        // Calcola la seconda parte basandosi sull'orario di fine originale
+        const originalStartTime = parseSessionTimestamp(currentEditSession.timestamp);
+        const originalEndTime = new Date(originalStartTime.getTime() + currentEditSession.seconds * 1000);
+        const secondPartSeconds = Math.floor((originalEndTime - splitTime) / 1000);
+        const secondPartMinutes = Math.floor(secondPartSeconds / 60);
+
+        if (firstPartSeconds > 0 && secondPartSeconds > 0) {
+            document.getElementById('editSessionUnifiedFirstPartDuration').textContent = `${firstPartMinutes} min`;
+            document.getElementById('editSessionUnifiedSecondPartDuration').textContent = `${secondPartMinutes} min`;
+        } else {
+            document.getElementById('editSessionUnifiedFirstPartDuration').textContent = 'Non valido';
+            document.getElementById('editSessionUnifiedSecondPartDuration').textContent = 'Non valido';
+        }
+    }
+}
+
+function parseSessionTimestamp(timestamp) {
+    // Parsa timestamp nel formato "2025-01-15 14:30:00" o "2025-01-15T14:30:00"
+    if (timestamp.includes('T')) {
+        const isoMatch = timestamp.match(/(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):?(\d{2})?/);
+        if (isoMatch) {
+            const [, year, month, day, hours, minutes, seconds] = isoMatch.map(Number);
+            return new Date(year, month - 1, day, hours, minutes, seconds || 0);
+        }
+    } else {
+        const parts = timestamp.split(' ');
+        const datePart = parts[0];
+        const timePart = parts[1] || '00:00:00';
+        const [year, month, day] = datePart.split('-').map(Number);
+        const [hours, minutes, seconds] = timePart.split(':').map(Number);
+        return new Date(year, month - 1, day, hours, minutes, seconds || 0);
+    }
+    return new Date(timestamp);
+}
+
+function formatTimeHHMM(date) {
+    return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+}
+
+function formatDateYYYYMMDD(date) {
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 }
 
 // === REPORT ===

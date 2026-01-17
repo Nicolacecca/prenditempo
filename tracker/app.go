@@ -10,6 +10,7 @@ type Project struct {
 	CreatedAt   string
 	Archived    bool
 	ClosedAt    string
+	NoteText    string
 }
 
 // StampaInfo stampa le informazioni del progetto

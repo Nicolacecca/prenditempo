@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PrendiTempo</title>
     <link rel="stylesheet" href="src/style.css">
+    <!-- EasyMDE Markdown Editor -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/easymde/dist/easymde.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/easymde/dist/easymde.min.js"></script>
     <style>
         /* Pattern Option Styles */
         .pattern-option {
@@ -113,6 +116,143 @@
                 0 16px 0 #666666,
                 8px 16px 0 #666666;
         }
+
+        /* EasyMDE Dark Theme */
+        .EasyMDEContainer {
+            background: #1a1a1a;
+        }
+        .EasyMDEContainer .CodeMirror {
+            background: #1a1a1a;
+            color: #ffffff;
+            border: 1px solid #3a3a3a;
+            border-radius: 8px;
+        }
+        .EasyMDEContainer .CodeMirror-cursor {
+            border-left: 1px solid #ffffff;
+        }
+        .EasyMDEContainer .editor-toolbar {
+            background: #242424;
+            border: 1px solid #3a3a3a;
+            border-bottom: none;
+            border-radius: 8px 8px 0 0;
+        }
+        .EasyMDEContainer .editor-toolbar button {
+            color: #999999 !important;
+        }
+        .EasyMDEContainer .editor-toolbar button:hover {
+            background: #3a3a3a;
+            color: #ffffff !important;
+        }
+        .EasyMDEContainer .editor-toolbar button.active {
+            background: #ff6b2b;
+            color: #ffffff !important;
+        }
+        .EasyMDEContainer .editor-toolbar i.separator {
+            border-left-color: #3a3a3a;
+            border-right-color: #3a3a3a;
+        }
+        .EasyMDEContainer .editor-statusbar {
+            color: #999999;
+            background: #242424;
+            border: 1px solid #3a3a3a;
+            border-top: none;
+            border-radius: 0 0 8px 8px;
+        }
+        .EasyMDEContainer .CodeMirror .CodeMirror-code .cm-header-1 { color: #ff6b2b; }
+        .EasyMDEContainer .CodeMirror .CodeMirror-code .cm-header-2 { color: #ff8b5a; }
+        .EasyMDEContainer .CodeMirror .CodeMirror-code .cm-header-3 { color: #ffa070; }
+        .EasyMDEContainer .CodeMirror .CodeMirror-code .cm-link { color: #3b82f6; }
+        .EasyMDEContainer .CodeMirror .CodeMirror-code .cm-url { color: #3b82f6; }
+        .EasyMDEContainer .CodeMirror .CodeMirror-code .cm-strong { color: #ffffff; }
+        .EasyMDEContainer .CodeMirror .CodeMirror-code .cm-em { color: #cccccc; }
+        .EasyMDEContainer .CodeMirror .CodeMirror-code .cm-comment { color: #6b7280; }
+        .EasyMDEContainer .CodeMirror .CodeMirror-code .cm-quote { color: #9ca3af; }
+        .EasyMDEContainer .CodeMirror-selected { background: rgba(255, 107, 43, 0.3) !important; }
+        .EasyMDEContainer .CodeMirror-focused .CodeMirror-selected { background: rgba(255, 107, 43, 0.3) !important; }
+        .EasyMDEContainer .editor-preview {
+            background: #1a1a1a;
+            color: #ffffff;
+        }
+        .EasyMDEContainer .editor-preview h1,
+        .EasyMDEContainer .editor-preview h2,
+        .EasyMDEContainer .editor-preview h3 {
+            color: #ff6b2b;
+            border-bottom: 1px solid #3a3a3a;
+        }
+        .EasyMDEContainer .editor-preview a { color: #3b82f6; }
+        .EasyMDEContainer .editor-preview code {
+            background: #242424;
+            color: #ff6b2b;
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+        .EasyMDEContainer .editor-preview pre {
+            background: #242424;
+            border: 1px solid #3a3a3a;
+            border-radius: 8px;
+        }
+        .EasyMDEContainer .editor-preview blockquote {
+            border-left: 4px solid #ff6b2b;
+            color: #9ca3af;
+            background: #242424;
+        }
+
+        /* Custom Radio Button Styles */
+        .radio-option {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            cursor: pointer;
+            padding: 15px 20px;
+            border: 2px solid #4a4a4a;
+            border-radius: 12px;
+            background: #1a1a1a;
+            flex: 1;
+            transition: all 0.2s;
+        }
+        .radio-option:hover {
+            border-color: #ff6b2b;
+            background: #2a2a2a;
+        }
+        .radio-option.selected {
+            border-color: #ff6b2b;
+            background: #2a2a2a;
+            box-shadow: 0 0 0 3px rgba(255, 107, 43, 0.2);
+        }
+        .radio-option input[type="radio"] {
+            display: none;
+        }
+        .radio-option .radio-circle {
+            width: 24px;
+            height: 24px;
+            border: 2px solid #6b7280;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            flex-shrink: 0;
+        }
+        .radio-option.selected .radio-circle {
+            border-color: #ff6b2b;
+        }
+        .radio-option .radio-circle::after {
+            content: '';
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #ff6b2b;
+            transform: scale(0);
+            transition: transform 0.2s;
+        }
+        .radio-option.selected .radio-circle::after {
+            transform: scale(1);
+        }
+        .radio-option span {
+            color: #ffffff;
+            font-weight: 500;
+            font-size: 1em;
+        }
     </style>
 </head>
 <body>
@@ -130,39 +270,41 @@
 
     <!-- SEZIONE DASHBOARD -->
     <div class="container" id="dashboardSection">
-        <!-- Status Bar -->
-        <div style="background: #242424; border-radius: 20px; padding: 20px; margin-bottom: 20px; border: 1px solid #3a3a3a;">
-            <div class="status-bar">
-                <div class="status-indicator" id="statusIndicator"></div>
-                <span id="statusText">Pronto</span>
+        <!-- Status Bar con controlli Tracking -->
+        <div style="background: #242424; border-radius: 20px; padding: 15px 20px; margin-bottom: 20px; border: 1px solid #3a3a3a;">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
+                <!-- Stato a sinistra -->
+                <div class="status-bar" style="flex-shrink: 0;">
+                    <div class="status-indicator" id="statusIndicator"></div>
+                    <span id="statusText">Pronto</span>
+                </div>
+
+                <!-- Sessione corrente (visibile solo durante tracking) -->
+                <div id="currentStats" style="display: none; flex: 1; min-width: 200px;">
+                    <div class="stats-grid" id="liveStats" style="display: flex; gap: 20px; justify-content: center;"></div>
+                </div>
+
+                <!-- Controlli tracking a destra -->
+                <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                    <select id="projectSelect" style="padding: 8px 12px; min-width: 180px;">
+                        <option value="">Seleziona progetto...</option>
+                    </select>
+                    <select id="activityTypeSelect" style="padding: 8px 12px; min-width: 150px;">
+                        <option value="">Tipo attività...</option>
+                    </select>
+                    <button class="btn btn-success" id="trackingBtn" onclick="toggleTracking()" style="margin: 0; padding: 8px 20px; width: auto;">Avvia Tracking</button>
+                </div>
             </div>
         </div>
 
-        <div class="grid">
-            <!-- Progetti -->
-            <div class="card">
-                <h2>Progetti</h2>
-                <div class="project-list" id="projectList">
-                    <p style="color: #6b7280;">Caricamento progetti...</p>
-                </div>
-                <button class="btn btn-success" onclick="openCreateProjectModal()">+ Crea Nuovo Progetto</button>
+        <!-- Progetti (larghezza piena) -->
+        <div class="card" style="margin-bottom: 20px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <h2 style="margin: 0;">Progetti</h2>
+                <button class="btn btn-success" onclick="openCreateProjectModal()" style="width: auto; padding: 10px 20px; margin: 0;">+ Crea Nuovo Progetto</button>
             </div>
-
-            <!-- Tracking -->
-            <div class="card">
-                <h2>Tracking</h2>
-                <select id="projectSelect">
-                    <option value="">Seleziona progetto...</option>
-                </select>
-                <select id="activityTypeSelect">
-                    <option value="">Tipo attività (opzionale)...</option>
-                </select>
-                <button class="btn btn-success" id="trackingBtn" onclick="toggleTracking()">Avvia Tracking</button>
-
-                <div id="currentStats" style="margin-top: 20px; display: none;">
-                    <h3 style="margin-bottom: 10px; color: #ffffff;">Sessione Corrente:</h3>
-                    <div class="stats-grid" id="liveStats"></div>
-                </div>
+            <div class="project-list" id="projectList">
+                <p style="color: #6b7280;">Caricamento progetti...</p>
             </div>
         </div>
 
@@ -172,7 +314,6 @@
                 <h2 style="margin: 0;">Timeline Progetti</h2>
                 <div style="display: flex; gap: 10px;">
                     <button class="btn" style="width: auto; padding: 10px 20px; margin: 0;" onclick="createNewSession()">+ Nuova Sessione</button>
-                    <button class="btn btn-success" style="width: auto; padding: 10px 20px; margin: 0;" onclick="openNoteModal()">Aggiungi Nota</button>
                 </div>
             </div>
             <div class="timeline-filters">
@@ -186,23 +327,6 @@
             </div>
             <div id="timelineContent">
                 <p style="color: #6b7280;">Seleziona un periodo per visualizzare la timeline</p>
-            </div>
-        </div>
-
-        <!-- Elenco Note -->
-        <div class="timeline-container" style="margin-top: 20px;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                <h2 style="margin: 0;">Elenco Note</h2>
-            </div>
-            <div style="margin-bottom: 15px; display: flex; gap: 10px; flex-wrap: wrap;">
-                <select id="notesFilterProject" style="padding: 10px; border: 1px solid #4a4a4a; border-radius: 6px; font-size: 0.95em; cursor: pointer; background: #1a1a1a; color: #ffffff;">
-                    <option value="">Tutti i progetti</option>
-                </select>
-                <input type="text" id="notesSearchText" placeholder="Cerca nelle note..." style="flex: 1; min-width: 200px; padding: 10px; border: 1px solid #4a4a4a; border-radius: 6px; font-size: 0.95em; background: #1a1a1a; color: #ffffff;">
-                <button class="btn" style="width: auto; padding: 10px 20px; margin: 0;" onclick="loadAllNotes()">Cerca</button>
-            </div>
-            <div id="notesListContent">
-                <p style="color: #6b7280;">Caricamento note...</p>
             </div>
         </div>
     </div>
@@ -277,7 +401,7 @@
         </div>
 
         <!-- Export/Import -->
-        <div class="card">
+        <div class="card" style="margin-bottom: 20px;">
             <h2>Backup Dati</h2>
             <p style="color: #999999; margin-bottom: 15px;">Esporta o importa i tuoi dati</p>
 
@@ -286,6 +410,14 @@
                 <input type="file" id="importFile" accept=".json" style="display: none;" onchange="importDataFromFile(event)">
                 <button class="btn btn-success" onclick="document.getElementById('importFile').click()">Importa Dati</button>
             </div>
+        </div>
+
+        <!-- Importa Note Legacy -->
+        <div class="card">
+            <h2>Importa Note Legacy</h2>
+            <p style="color: #999999; margin-bottom: 15px;">Se hai delle note create con la versione precedente, puoi importarle nel nuovo sistema di note markdown per progetto</p>
+
+            <button class="btn" style="background: #f59e0b;" onclick="migrateLegacyNotes()">Importa Note Vecchie</button>
         </div>
     </div>
 
@@ -416,54 +548,33 @@
                 <textarea id="editProjectDesc" placeholder="Descrizione del progetto..."></textarea>
             </div>
             <div class="modal-buttons">
+                <button class="btn" style="background: #f59e0b;" onclick="archiveProjectFromModal()">Chiudi Progetto</button>
                 <button class="btn" style="background: #6b7280;" onclick="closeEditProjectModal()">Annulla</button>
                 <button class="btn btn-success" onclick="updateProject()">Salva Modifiche</button>
             </div>
         </div>
     </div>
 
-    <div class="modal" id="noteModal">
-        <div class="modal-content">
+    <!-- Modal Nota Progetto con Editor Markdown -->
+    <div class="modal" id="projectNoteModal">
+        <div class="modal-content" style="max-width: 900px; height: 80vh;">
             <div class="modal-header">
-                <h2>Aggiungi Nota</h2>
-                <p style="color: #6b7280;">Inserisci una nota relativa a un progetto</p>
+                <h2>Note del Progetto</h2>
+                <p style="color: #6b7280;" id="projectNoteProjectName"></p>
             </div>
-            <div class="modal-body">
-                <label style="color: #ffffff; font-weight: 600; margin-bottom: 10px; display: block;">Progetto:</label>
-                <select id="noteProjectSelect">
-                    <option value="">Seleziona progetto...</option>
-                </select>
-                <label style="color: #ffffff; font-weight: 600; margin-bottom: 10px; margin-top: 15px; display: block;">Nota:</label>
-                <textarea id="noteText" placeholder="Scrivi qui la tua nota..."></textarea>
+            <div class="modal-body" style="flex: 1; display: flex; flex-direction: column; overflow: hidden;">
+                <input type="hidden" id="projectNoteProjectId">
+                <textarea id="projectNoteEditor"></textarea>
             </div>
             <div class="modal-buttons">
-                <button class="btn" style="background: #6b7280;" onclick="closeNoteModal()">Annulla</button>
-                <button class="btn btn-success" onclick="saveNote()">Salva Nota</button>
-            </div>
-        </div>
-    </div>
-
-    <div class="modal" id="editNoteModal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2>Modifica Nota</h2>
-                <p style="color: #6b7280;" id="editNoteTimestamp"></p>
-            </div>
-            <div class="modal-body">
-                <input type="hidden" id="editNoteId">
-                <label style="color: #ffffff; font-weight: 600; margin-bottom: 10px; display: block;">Testo della nota:</label>
-                <textarea id="editNoteText" placeholder="Scrivi qui la tua nota..." style="min-height: 150px;"></textarea>
-            </div>
-            <div class="modal-buttons">
-                <button class="btn" style="background: #ef4444;" onclick="deleteNoteFromModal()">Elimina</button>
-                <button class="btn" style="background: #6b7280;" onclick="closeEditNoteModal()">Annulla</button>
-                <button class="btn btn-success" onclick="updateNote()">Salva Modifiche</button>
+                <button class="btn" style="background: #6b7280;" onclick="closeProjectNoteModal()">Chiudi</button>
+                <button class="btn btn-success" onclick="saveProjectNote()">Salva Note</button>
             </div>
         </div>
     </div>
 
     <div class="modal" id="createSessionModal">
-        <div class="modal-content">
+        <div class="modal-content" style="max-width: 550px;">
             <div class="modal-header">
                 <h2>Nuova Sessione Manuale</h2>
                 <p style="color: #6b7280;">Inserisci i dati della sessione</p>
@@ -473,17 +584,26 @@
                 <div id="projectRadioList" style="margin-bottom: 15px; max-height: 150px; overflow-y: auto; border: 1px solid #4a4a4a; border-radius: 6px; padding: 10px;">
                     <p style="color: #6b7280;">Caricamento progetti...</p>
                 </div>
-                <label style="color: #ffffff; font-weight: 600; margin-bottom: 8px; display: block; font-size: 0.95em;">Durata (minuti):</label>
-                <input type="number" id="sessionDuration" placeholder="30" value="30" min="1" style="width: 100%; padding: 10px; border: 1px solid #4a4a4a; border-radius: 6px; margin-bottom: 15px; background: #1a1a1a; color: #ffffff;">
-                <label style="color: #ffffff; font-weight: 600; margin-bottom: 8px; display: block; font-size: 0.95em;">Data:</label>
-                <input type="date" id="sessionDate" style="width: 100%; padding: 10px; border: 1px solid #4a4a4a; border-radius: 6px; font-size: 1em; cursor: pointer; margin-bottom: 15px; background: #1a1a1a; color: #ffffff;">
-                <label style="color: #ffffff; font-weight: 600; margin-bottom: 8px; display: block; font-size: 0.95em;">Ora:</label>
+
+                <label style="color: #ffffff; font-weight: 600; margin-bottom: 8px; display: block;">Orario di Inizio:</label>
                 <div style="display: flex; gap: 10px; margin-bottom: 15px; align-items: center;">
-                    <select id="sessionHour" style="flex: 1; padding: 10px; border: 1px solid #4a4a4a; border-radius: 6px; font-size: 1em; cursor: pointer; background: #1a1a1a; color: #ffffff;"></select>
-                    <span style="font-size: 1.2em; font-weight: bold; color: #999999;">:</span>
-                    <select id="sessionMinute" style="flex: 1; padding: 10px; border: 1px solid #4a4a4a; border-radius: 6px; font-size: 1em; cursor: pointer; background: #1a1a1a; color: #ffffff;"></select>
+                    <input type="date" id="sessionStartDate" style="flex: 2; padding: 10px; border: 1px solid #4a4a4a; border-radius: 6px; background: #1a1a1a; color: #ffffff;">
+                    <select id="sessionStartHour" style="flex: 1; padding: 10px; border: 1px solid #4a4a4a; border-radius: 6px; background: #1a1a1a; color: #ffffff;"></select>
+                    <span style="color: #999999; font-weight: bold;">:</span>
+                    <select id="sessionStartMinute" style="flex: 1; padding: 10px; border: 1px solid #4a4a4a; border-radius: 6px; background: #1a1a1a; color: #ffffff;"></select>
                 </div>
-                <label style="color: #ffffff; font-weight: 600; margin-bottom: 8px; display: block; font-size: 0.95em;">Tipo Attività (opzionale):</label>
+
+                <label style="color: #ffffff; font-weight: 600; margin-bottom: 8px; display: block;">Orario di Fine:</label>
+                <div style="display: flex; gap: 10px; margin-bottom: 15px; align-items: center;">
+                    <input type="date" id="sessionEndDate" style="flex: 2; padding: 10px; border: 1px solid #4a4a4a; border-radius: 6px; background: #1a1a1a; color: #ffffff;">
+                    <select id="sessionEndHour" style="flex: 1; padding: 10px; border: 1px solid #4a4a4a; border-radius: 6px; background: #1a1a1a; color: #ffffff;"></select>
+                    <span style="color: #999999; font-weight: bold;">:</span>
+                    <select id="sessionEndMinute" style="flex: 1; padding: 10px; border: 1px solid #4a4a4a; border-radius: 6px; background: #1a1a1a; color: #ffffff;"></select>
+                </div>
+
+                <p style="color: #999999; font-size: 0.9em; margin-bottom: 15px;">Durata: <strong id="sessionCalculatedDuration" style="color: #ff6b2b;">--</strong></p>
+
+                <label style="color: #ffffff; font-weight: 600; margin-bottom: 8px; display: block;">Tipo Attività (opzionale):</label>
                 <select id="sessionActivityType" style="width: 100%; padding: 10px; border: 1px solid #4a4a4a; border-radius: 6px; background: #1a1a1a; color: #ffffff;">
                     <option value="">Nessuno</option>
                 </select>
@@ -614,6 +734,104 @@
             <div class="modal-buttons">
                 <button class="btn" style="background: #6b7280;" onclick="closeSplitSessionModal()">Annulla</button>
                 <button class="btn btn-success" onclick="confirmSplitSession()">Dividi Sessione</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Unificato Modifica Sessione -->
+    <div class="modal" id="editSessionUnifiedModal">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <h2>Modifica Sessione</h2>
+                <p style="color: #6b7280;" id="editSessionUnifiedProject"></p>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="editSessionUnifiedId">
+
+                <!-- Info sessione corrente -->
+                <div style="background: #1a1a1a; padding: 15px; border-radius: 16px; margin-bottom: 20px; border: 1px solid #3a3a3a;">
+                    <p style="margin: 5px 0; color: #999999;"><strong style="color: #ff6b2b;">Durata attuale:</strong> <span id="editSessionUnifiedCurrentDuration"></span></p>
+                    <p style="margin: 5px 0; color: #999999;"><strong style="color: #ff6b2b;">Periodo:</strong> <span id="editSessionUnifiedCurrentPeriod"></span></p>
+                </div>
+
+                <!-- Orario di inizio -->
+                <label style="color: #ffffff; font-weight: 600; margin-bottom: 10px; display: block;">Orario di Inizio:</label>
+                <div style="display: flex; gap: 10px; margin-bottom: 20px; align-items: center;">
+                    <input type="date" id="editSessionUnifiedStartDate" style="flex: 2; padding: 10px; border: 1px solid #4a4a4a; border-radius: 6px; background: #1a1a1a; color: #ffffff;">
+                    <select id="editSessionUnifiedStartHour" style="flex: 1; padding: 10px; border: 1px solid #4a4a4a; border-radius: 6px; background: #1a1a1a; color: #ffffff;"></select>
+                    <span style="color: #999999; font-weight: bold;">:</span>
+                    <select id="editSessionUnifiedStartMinute" style="flex: 1; padding: 10px; border: 1px solid #4a4a4a; border-radius: 6px; background: #1a1a1a; color: #ffffff;"></select>
+                </div>
+
+                <!-- Modalità: Fine o Divisione -->
+                <label style="color: #ffffff; font-weight: 600; margin-bottom: 10px; display: block;">Modalità:</label>
+                <div style="display: flex; gap: 15px; margin-bottom: 20px;">
+                    <label class="radio-option selected" onclick="selectRadioOption(this, 'end')">
+                        <input type="radio" name="editSessionUnifiedMode" value="end" checked onchange="toggleEditSessionMode()">
+                        <div class="radio-circle"></div>
+                        <span>Modifica Fine</span>
+                    </label>
+                    <label class="radio-option" onclick="selectRadioOption(this, 'split')">
+                        <input type="radio" name="editSessionUnifiedMode" value="split" onchange="toggleEditSessionMode()">
+                        <div class="radio-circle"></div>
+                        <span>Dividi Sessione</span>
+                    </label>
+                </div>
+
+                <!-- Sezione Fine (visibile per default) -->
+                <div id="editSessionUnifiedEndSection">
+                    <label style="color: #ffffff; font-weight: 600; margin-bottom: 10px; display: block;">Orario di Fine:</label>
+                    <div style="display: flex; gap: 10px; margin-bottom: 20px; align-items: center;">
+                        <input type="date" id="editSessionUnifiedEndDate" style="flex: 2; padding: 10px; border: 1px solid #4a4a4a; border-radius: 6px; background: #1a1a1a; color: #ffffff;">
+                        <select id="editSessionUnifiedEndHour" style="flex: 1; padding: 10px; border: 1px solid #4a4a4a; border-radius: 6px; background: #1a1a1a; color: #ffffff;"></select>
+                        <span style="color: #999999; font-weight: bold;">:</span>
+                        <select id="editSessionUnifiedEndMinute" style="flex: 1; padding: 10px; border: 1px solid #4a4a4a; border-radius: 6px; background: #1a1a1a; color: #ffffff;"></select>
+                    </div>
+                    <p style="color: #999999; font-size: 0.9em; margin-bottom: 15px;">Nuova durata: <strong id="editSessionUnifiedNewDuration" style="color: #ff6b2b;">--</strong></p>
+                </div>
+
+                <!-- Sezione Divisione (nascosta per default) -->
+                <div id="editSessionUnifiedSplitSection" style="display: none;">
+                    <label style="color: #ffffff; font-weight: 600; margin-bottom: 10px; display: block;">Punto di Divisione:</label>
+                    <div style="display: flex; gap: 10px; margin-bottom: 20px; align-items: center;">
+                        <input type="date" id="editSessionUnifiedSplitDate" style="flex: 2; padding: 10px; border: 1px solid #4a4a4a; border-radius: 6px; background: #1a1a1a; color: #ffffff;">
+                        <select id="editSessionUnifiedSplitHour" style="flex: 1; padding: 10px; border: 1px solid #4a4a4a; border-radius: 6px; background: #1a1a1a; color: #ffffff;"></select>
+                        <span style="color: #999999; font-weight: bold;">:</span>
+                        <select id="editSessionUnifiedSplitMinute" style="flex: 1; padding: 10px; border: 1px solid #4a4a4a; border-radius: 6px; background: #1a1a1a; color: #ffffff;"></select>
+                    </div>
+                    <p style="color: #999999; font-size: 0.9em; margin-bottom: 15px;">
+                        Prima parte: <strong id="editSessionUnifiedFirstPartDuration" style="color: #ff6b2b;">--</strong> |
+                        Seconda parte: <strong id="editSessionUnifiedSecondPartDuration" style="color: #ff6b2b;">--</strong>
+                    </p>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+                        <div>
+                            <label style="color: #ffffff; font-weight: 600; margin-bottom: 10px; display: block;">Tipo prima parte:</label>
+                            <select id="editSessionUnifiedFirstType" style="width: 100%; padding: 10px; border: 1px solid #4a4a4a; border-radius: 6px; background: #1a1a1a; color: #ffffff;">
+                                <option value="">Nessuno</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label style="color: #ffffff; font-weight: 600; margin-bottom: 10px; display: block;">Tipo seconda parte:</label>
+                            <select id="editSessionUnifiedSecondType" style="width: 100%; padding: 10px; border: 1px solid #4a4a4a; border-radius: 6px; background: #1a1a1a; color: #ffffff;">
+                                <option value="">Nessuno</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tipo attività (solo per modalità Fine) -->
+                <div id="editSessionUnifiedActivitySection">
+                    <label style="color: #ffffff; font-weight: 600; margin-bottom: 10px; display: block;">Tipo Attività:</label>
+                    <select id="editSessionUnifiedActivityType" style="width: 100%; padding: 10px; border: 1px solid #4a4a4a; border-radius: 6px; background: #1a1a1a; color: #ffffff;">
+                        <option value="">Nessuno</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-buttons">
+                <button class="btn" style="background: #ef4444;" onclick="deleteSessionFromUnified()">Elimina</button>
+                <button class="btn" style="background: #6b7280;" onclick="closeEditSessionUnifiedModal()">Annulla</button>
+                <button class="btn btn-success" onclick="confirmEditSessionUnified()">Salva Modifiche</button>
             </div>
         </div>
     </div>

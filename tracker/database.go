@@ -74,6 +74,12 @@ func InitDB(filepath string) (*sql.DB, error) {
 			fmt.Printf("[DB] Avviso migrazione projects.closed_at: %v\n", err)
 		}
 	}
+	// Migrazione: aggiungi colonna note_text per nota markdown del progetto
+	if _, err := db.Exec(`ALTER TABLE projects ADD COLUMN note_text TEXT DEFAULT '';`); err != nil {
+		if !isDuplicateColumnError(err) {
+			fmt.Printf("[DB] Avviso migrazione projects.note_text: %v\n", err)
+		}
+	}
 
 	// Crea tabella sessions per tracciare sessioni
 	createSessionsSQL := `
@@ -429,9 +435,116 @@ func AggiornaProgetto(db *sql.DB, projectID int, name, description string) error
 	return nil
 }
 
+// AggiornaNotaProgetto aggiorna la nota markdown di un progetto
+func AggiornaNotaProgetto(db *sql.DB, projectID int, noteText string) error {
+	updateSQL := `UPDATE projects SET note_text = ? WHERE id = ?`
+
+	result, err := db.Exec(updateSQL, noteText, projectID)
+	if err != nil {
+		return fmt.Errorf("errore aggiornamento nota progetto: %v", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("errore verifica aggiornamento: %v", err)
+	}
+
+	if rowsAffected == 0 {
+		return fmt.Errorf("progetto con ID %d non trovato", projectID)
+	}
+
+	fmt.Printf("[DB] Nota progetto ID %d aggiornata\n", projectID)
+	return nil
+}
+
+// MigraNoteLegacy migra le note dalla vecchia tabella notes al campo note_text dei progetti
+func MigraNoteLegacy(db *sql.DB) (int, error) {
+	// Legge tutte le note vecchie raggruppate per progetto
+	query := `
+	SELECT n.project_id, n.note_text, n.timestamp, p.name
+	FROM notes n
+	LEFT JOIN projects p ON n.project_id = p.id
+	ORDER BY n.project_id, n.timestamp ASC
+	`
+
+	rows, err := db.Query(query)
+	if err != nil {
+		return 0, fmt.Errorf("errore lettura note legacy: %v", err)
+	}
+	defer rows.Close()
+
+	// Raggruppa note per progetto
+	notesByProject := make(map[int][]string)
+	projectNames := make(map[int]string)
+	noteCount := 0
+
+	for rows.Next() {
+		var projectID int
+		var noteText, timestamp string
+		var projectName *string
+
+		if err := rows.Scan(&projectID, &noteText, &timestamp, &projectName); err != nil {
+			return 0, fmt.Errorf("errore lettura riga nota: %v", err)
+		}
+
+		// Formatta la nota con timestamp come header markdown
+		formattedNote := fmt.Sprintf("## %s\n\n%s\n", timestamp, noteText)
+		notesByProject[projectID] = append(notesByProject[projectID], formattedNote)
+
+		if projectName != nil {
+			projectNames[projectID] = *projectName
+		}
+		noteCount++
+	}
+
+	if noteCount == 0 {
+		return 0, nil
+	}
+
+	// Aggiorna ogni progetto con le sue note concatenate
+	migratedProjects := 0
+	for projectID, notes := range notesByProject {
+		// Carica nota esistente del progetto
+		var existingNote string
+		err := db.QueryRow(`SELECT COALESCE(note_text, '') FROM projects WHERE id = ?`, projectID).Scan(&existingNote)
+		if err != nil {
+			fmt.Printf("[DB] Errore lettura nota esistente per progetto %d: %v\n", projectID, err)
+			continue
+		}
+
+		// Concatena le vecchie note
+		combinedNotes := "# Note Importate\n\n"
+		for _, note := range notes {
+			combinedNotes += note + "\n---\n\n"
+		}
+
+		// Se c'era già una nota, la mette in fondo
+		if existingNote != "" {
+			combinedNotes = existingNote + "\n\n---\n\n" + combinedNotes
+		}
+
+		// Aggiorna il progetto
+		_, err = db.Exec(`UPDATE projects SET note_text = ? WHERE id = ?`, combinedNotes, projectID)
+		if err != nil {
+			fmt.Printf("[DB] Errore aggiornamento nota per progetto %d: %v\n", projectID, err)
+			continue
+		}
+
+		projectName := projectNames[projectID]
+		if projectName == "" {
+			projectName = fmt.Sprintf("ID %d", projectID)
+		}
+		fmt.Printf("[DB] Migrate %d note per progetto '%s'\n", len(notes), projectName)
+		migratedProjects++
+	}
+
+	fmt.Printf("[DB] Migrazione completata: %d note da %d progetti\n", noteCount, migratedProjects)
+	return noteCount, nil
+}
+
 // CaricaTuttiProgetti carica tutti i progetti
 func CaricaTuttiProgetti(db *sql.DB) ([]Project, error) {
-	selectSQL := `SELECT id, name, description, created_at, archived, COALESCE(closed_at, '') FROM projects ORDER BY created_at DESC`
+	selectSQL := `SELECT id, name, description, created_at, archived, COALESCE(closed_at, ''), COALESCE(note_text, '') FROM projects ORDER BY created_at DESC`
 
 	rows, err := db.Query(selectSQL)
 	if err != nil {
@@ -443,7 +556,7 @@ func CaricaTuttiProgetti(db *sql.DB) ([]Project, error) {
 	for rows.Next() {
 		var p Project
 		var archived int
-		if err := rows.Scan(&p.ID, &p.Name, &p.Description, &p.CreatedAt, &archived, &p.ClosedAt); err != nil {
+		if err := rows.Scan(&p.ID, &p.Name, &p.Description, &p.CreatedAt, &archived, &p.ClosedAt, &p.NoteText); err != nil {
 			return nil, fmt.Errorf("errore lettura riga: %v", err)
 		}
 		p.Archived = archived == 1
@@ -455,7 +568,7 @@ func CaricaTuttiProgetti(db *sql.DB) ([]Project, error) {
 
 // CaricaProgettiAttivi carica solo i progetti attivi (non archiviati) - ottimizzato
 func CaricaProgettiAttivi(db *sql.DB) ([]Project, error) {
-	selectSQL := `SELECT id, name, description, created_at, archived, COALESCE(closed_at, '') FROM projects WHERE archived = 0 ORDER BY created_at DESC`
+	selectSQL := `SELECT id, name, description, created_at, archived, COALESCE(closed_at, ''), COALESCE(note_text, '') FROM projects WHERE archived = 0 ORDER BY created_at DESC`
 
 	rows, err := db.Query(selectSQL)
 	if err != nil {
@@ -467,7 +580,7 @@ func CaricaProgettiAttivi(db *sql.DB) ([]Project, error) {
 	for rows.Next() {
 		var p Project
 		var archived int
-		if err := rows.Scan(&p.ID, &p.Name, &p.Description, &p.CreatedAt, &archived, &p.ClosedAt); err != nil {
+		if err := rows.Scan(&p.ID, &p.Name, &p.Description, &p.CreatedAt, &archived, &p.ClosedAt, &p.NoteText); err != nil {
 			return nil, fmt.Errorf("errore lettura riga: %v", err)
 		}
 		p.Archived = archived == 1
@@ -479,7 +592,7 @@ func CaricaProgettiAttivi(db *sql.DB) ([]Project, error) {
 
 // CaricaProgettiArchiviati carica solo i progetti archiviati - ottimizzato
 func CaricaProgettiArchiviati(db *sql.DB) ([]Project, error) {
-	selectSQL := `SELECT id, name, description, created_at, archived, COALESCE(closed_at, '') FROM projects WHERE archived = 1 ORDER BY closed_at DESC`
+	selectSQL := `SELECT id, name, description, created_at, archived, COALESCE(closed_at, ''), COALESCE(note_text, '') FROM projects WHERE archived = 1 ORDER BY closed_at DESC`
 
 	rows, err := db.Query(selectSQL)
 	if err != nil {
@@ -491,7 +604,7 @@ func CaricaProgettiArchiviati(db *sql.DB) ([]Project, error) {
 	for rows.Next() {
 		var p Project
 		var archived int
-		if err := rows.Scan(&p.ID, &p.Name, &p.Description, &p.CreatedAt, &archived, &p.ClosedAt); err != nil {
+		if err := rows.Scan(&p.ID, &p.Name, &p.Description, &p.CreatedAt, &archived, &p.ClosedAt, &p.NoteText); err != nil {
 			return nil, fmt.Errorf("errore lettura riga: %v", err)
 		}
 		p.Archived = archived == 1
@@ -503,11 +616,11 @@ func CaricaProgettiArchiviati(db *sql.DB) ([]Project, error) {
 
 // TrovaProgetto cerca un progetto per nome
 func TrovaProgetto(db *sql.DB, name string) (*Project, error) {
-	selectSQL := `SELECT id, name, description, created_at, archived, COALESCE(closed_at, '') FROM projects WHERE name = ?`
+	selectSQL := `SELECT id, name, description, created_at, archived, COALESCE(closed_at, ''), COALESCE(note_text, '') FROM projects WHERE name = ?`
 
 	var p Project
 	var archived int
-	err := db.QueryRow(selectSQL, name).Scan(&p.ID, &p.Name, &p.Description, &p.CreatedAt, &archived, &p.ClosedAt)
+	err := db.QueryRow(selectSQL, name).Scan(&p.ID, &p.Name, &p.Description, &p.CreatedAt, &archived, &p.ClosedAt, &p.NoteText)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, fmt.Errorf("progetto '%s' non trovato", name)
@@ -521,11 +634,11 @@ func TrovaProgetto(db *sql.DB, name string) (*Project, error) {
 
 // TrovaProgettoById trova un progetto per ID
 func TrovaProgettoById(db *sql.DB, id int) (*Project, error) {
-	selectSQL := `SELECT id, name, description, created_at, archived, COALESCE(closed_at, '') FROM projects WHERE id = ?`
+	selectSQL := `SELECT id, name, description, created_at, archived, COALESCE(closed_at, ''), COALESCE(note_text, '') FROM projects WHERE id = ?`
 
 	var p Project
 	var archived int
-	err := db.QueryRow(selectSQL, id).Scan(&p.ID, &p.Name, &p.Description, &p.CreatedAt, &archived, &p.ClosedAt)
+	err := db.QueryRow(selectSQL, id).Scan(&p.ID, &p.Name, &p.Description, &p.CreatedAt, &archived, &p.ClosedAt, &p.NoteText)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, fmt.Errorf("progetto con ID %d non trovato", id)
@@ -702,207 +815,6 @@ func AggiornaActivityType(db *sql.DB, sessionID int, activityType *string) error
 	return nil
 }
 
-// === FUNZIONI PER NOTE ===
-
-// Note rappresenta una nota di progetto
-type Note struct {
-	ID        int
-	ProjectID int
-	NoteText  string
-	Timestamp string
-}
-
-// CreaNote crea una nuova nota per un progetto
-func CreaNote(db *sql.DB, projectID int, noteText, timestamp string) (int64, error) {
-	var insertSQL string
-	var result sql.Result
-	var err error
-
-	if timestamp != "" {
-		insertSQL = `INSERT INTO notes (project_id, note_text, timestamp) VALUES (?, ?, ?)`
-		result, err = db.Exec(insertSQL, projectID, noteText, timestamp)
-	} else {
-		insertSQL = `INSERT INTO notes (project_id, note_text) VALUES (?, ?)`
-		result, err = db.Exec(insertSQL, projectID, noteText)
-	}
-
-	if err != nil {
-		return 0, fmt.Errorf("errore creazione nota: %v", err)
-	}
-
-	id, err := result.LastInsertId()
-	if err != nil {
-		return 0, fmt.Errorf("errore ottenimento ID: %v", err)
-	}
-
-	fmt.Printf("[DB] Nota creata per progetto ID %d\n", projectID)
-	return id, nil
-}
-
-// CaricaNoteProgetto carica tutte le note di un progetto
-func CaricaNoteProgetto(db *sql.DB, projectID int) ([]Note, error) {
-	query := `SELECT id, project_id, note_text, timestamp FROM notes WHERE project_id = ? ORDER BY timestamp DESC`
-
-	rows, err := db.Query(query, projectID)
-	if err != nil {
-		return nil, fmt.Errorf("errore query note: %v", err)
-	}
-	defer rows.Close()
-
-	var notes []Note
-	for rows.Next() {
-		var n Note
-		if err := rows.Scan(&n.ID, &n.ProjectID, &n.NoteText, &n.Timestamp); err != nil {
-			return nil, err
-		}
-		notes = append(notes, n)
-	}
-
-	return notes, nil
-}
-
-// NoteWithProject rappresenta una nota con il nome del progetto (per evitare N+1 query)
-type NoteWithProject struct {
-	ID          int
-	ProjectID   int
-	ProjectName string
-	NoteText    string
-	Timestamp   string
-}
-
-// CaricaNotePerPeriodo carica le note di tutti i progetti in un periodo
-// Ottimizzato: usa confronto diretto invece di DATE() per sfruttare gli indici
-func CaricaNotePerPeriodo(db *sql.DB, startDate, endDate string) ([]Note, error) {
-	// Costruisci range di date per query ottimizzata
-	startDateTime := startDate + " 00:00:00"
-	endDateTime := endDate + " 23:59:59"
-
-	query := `
-	SELECT id, project_id, note_text, timestamp
-	FROM notes
-	WHERE timestamp >= ? AND timestamp <= ?
-	ORDER BY timestamp ASC
-	`
-
-	rows, err := db.Query(query, startDateTime, endDateTime)
-	if err != nil {
-		return nil, fmt.Errorf("errore query note periodo: %v", err)
-	}
-	defer rows.Close()
-
-	var notes []Note
-	for rows.Next() {
-		var n Note
-		if err := rows.Scan(&n.ID, &n.ProjectID, &n.NoteText, &n.Timestamp); err != nil {
-			return nil, err
-		}
-		notes = append(notes, n)
-	}
-
-	return notes, nil
-}
-
-// CaricaNotePerPeriodoConProgetto carica le note con nome progetto in un periodo (evita N+1)
-func CaricaNotePerPeriodoConProgetto(db *sql.DB, startDate, endDate string) ([]NoteWithProject, error) {
-	startDateTime := startDate + " 00:00:00"
-	endDateTime := endDate + " 23:59:59"
-
-	query := `
-	SELECT n.id, n.project_id, COALESCE(p.name, 'Progetto sconosciuto') as project_name, n.note_text, n.timestamp
-	FROM notes n
-	LEFT JOIN projects p ON n.project_id = p.id
-	WHERE n.timestamp >= ? AND n.timestamp <= ?
-	ORDER BY n.timestamp ASC
-	`
-
-	rows, err := db.Query(query, startDateTime, endDateTime)
-	if err != nil {
-		return nil, fmt.Errorf("errore query note periodo con progetto: %v", err)
-	}
-	defer rows.Close()
-
-	var notes []NoteWithProject
-	for rows.Next() {
-		var n NoteWithProject
-		if err := rows.Scan(&n.ID, &n.ProjectID, &n.ProjectName, &n.NoteText, &n.Timestamp); err != nil {
-			return nil, err
-		}
-		notes = append(notes, n)
-	}
-
-	return notes, nil
-}
-
-// CaricaTutteLeNote carica tutte le note con filtri opzionali
-func CaricaTutteLeNote(db *sql.DB, projectID, searchText, limit string) ([]Note, error) {
-	query := `
-	SELECT id, project_id, note_text, timestamp
-	FROM notes
-	WHERE 1=1
-	`
-
-	args := []interface{}{}
-
-	// Filtro per progetto
-	if projectID != "" {
-		query += " AND project_id = ?"
-		args = append(args, projectID)
-	}
-
-	// Filtro per ricerca testuale
-	if searchText != "" {
-		query += " AND note_text LIKE ?"
-		args = append(args, "%"+searchText+"%")
-	}
-
-	query += " ORDER BY timestamp DESC"
-
-	// Limite risultati
-	if limit != "" {
-		query += " LIMIT ?"
-		args = append(args, limit)
-	}
-
-	rows, err := db.Query(query, args...)
-	if err != nil {
-		return nil, fmt.Errorf("errore query tutte le note: %v", err)
-	}
-	defer rows.Close()
-
-	var notes []Note
-	for rows.Next() {
-		var n Note
-		if err := rows.Scan(&n.ID, &n.ProjectID, &n.NoteText, &n.Timestamp); err != nil {
-			return nil, err
-		}
-		notes = append(notes, n)
-	}
-
-	return notes, nil
-}
-
-// AggiornaNota aggiorna il testo di una nota esistente
-func AggiornaNota(db *sql.DB, noteID int, noteText string) error {
-	updateSQL := `UPDATE notes SET note_text = ? WHERE id = ?`
-	_, err := db.Exec(updateSQL, noteText, noteID)
-	if err != nil {
-		return fmt.Errorf("errore aggiornamento nota: %v", err)
-	}
-	fmt.Printf("[DB] Nota ID %d aggiornata\n", noteID)
-	return nil
-}
-
-// EliminaNota elimina una nota dal database
-func EliminaNota(db *sql.DB, noteID int) error {
-	deleteSQL := `DELETE FROM notes WHERE id = ?`
-	_, err := db.Exec(deleteSQL, noteID)
-	if err != nil {
-		return fmt.Errorf("errore eliminazione nota: %v", err)
-	}
-	fmt.Printf("[DB] Nota ID %d eliminata\n", noteID)
-	return nil
-}
-
 // === FUNZIONI PER ARCHIVIAZIONE PROGETTI ===
 
 // ArchivaProgetto chiude e archivia un progetto
@@ -932,8 +844,8 @@ func GeneraReportChiusura(db *sql.DB, projectID int) (map[string]interface{}, er
 	// Recupera informazioni progetto
 	var project Project
 	var archived int
-	projectSQL := `SELECT id, name, description, created_at, archived, COALESCE(closed_at, '') FROM projects WHERE id = ?`
-	err := db.QueryRow(projectSQL, projectID).Scan(&project.ID, &project.Name, &project.Description, &project.CreatedAt, &archived, &project.ClosedAt)
+	projectSQL := `SELECT id, name, description, created_at, archived, COALESCE(closed_at, ''), COALESCE(note_text, '') FROM projects WHERE id = ?`
+	err := db.QueryRow(projectSQL, projectID).Scan(&project.ID, &project.Name, &project.Description, &project.CreatedAt, &archived, &project.ClosedAt, &project.NoteText)
 	if err != nil {
 		return nil, fmt.Errorf("errore lettura progetto: %v", err)
 	}
@@ -982,6 +894,7 @@ func GeneraReportChiusura(db *sql.DB, projectID int) (map[string]interface{}, er
 		"project_id":          project.ID,
 		"project_name":        project.Name,
 		"project_description": project.Description,
+		"note_text":           project.NoteText,
 		"created_at":          project.CreatedAt,
 		"closed_at":           project.ClosedAt,
 		"start_date":          startDate,
@@ -1037,6 +950,57 @@ func AggiornaDurataSessione(db *sql.DB, sessionID int, nuoviSecondi int) error {
 
 	fmt.Printf("[DB] Durata sessione ID %d aggiornata a %d secondi\n", sessionID, nuoviSecondi)
 	return nil
+}
+
+// AggiornaSessioneCompleta aggiorna timestamp, durata e tipo attività di una sessione
+func AggiornaSessioneCompleta(db *sql.DB, sessionID int, newTimestamp string, newSeconds int, activityType *string) error {
+	updateSQL := `UPDATE sessions SET timestamp = ?, seconds = ?, activity_type = ? WHERE id = ?`
+
+	result, err := db.Exec(updateSQL, newTimestamp, newSeconds, activityType, sessionID)
+	if err != nil {
+		return fmt.Errorf("errore aggiornamento sessione: %v", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("errore verifica aggiornamento: %v", err)
+	}
+
+	if rowsAffected == 0 {
+		return fmt.Errorf("sessione non trovata")
+	}
+
+	fmt.Printf("[DB] Sessione ID %d aggiornata: timestamp=%s, secondi=%d\n", sessionID, newTimestamp, newSeconds)
+	return nil
+}
+
+// CaricaSessioneById carica una singola sessione dato l'ID
+func CaricaSessioneById(db *sql.DB, sessionID int) (*SessionDetail, error) {
+	query := `
+	SELECT
+		s.id,
+		s.app_name,
+		s.seconds,
+		s.project_id,
+		COALESCE(p.name, 'Nessun progetto') as project_name,
+		COALESCE(s.session_type, 'computer') as session_type,
+		s.activity_type,
+		s.timestamp
+	FROM sessions s
+	LEFT JOIN projects p ON s.project_id = p.id
+	WHERE s.id = ?
+	`
+
+	var s SessionDetail
+	err := db.QueryRow(query, sessionID).Scan(&s.ID, &s.AppName, &s.Seconds, &s.ProjectID, &s.ProjectName, &s.SessionType, &s.ActivityType, &s.Timestamp)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, fmt.Errorf("sessione con ID %d non trovata", sessionID)
+		}
+		return nil, fmt.Errorf("errore caricamento sessione: %v", err)
+	}
+
+	return &s, nil
 }
 
 // DividiSessione divide una sessione in due parti

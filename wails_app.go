@@ -1,5 +1,3 @@
-//go:build wails
-
 package main
 
 import (
@@ -45,6 +43,7 @@ type ProjectData struct {
 	CreatedAt   string `json:"created_at"`
 	Archived    bool   `json:"archived"`
 	ClosedAt    string `json:"closed_at,omitempty"`
+	NoteText    string `json:"note_text"`
 }
 
 // GetProjects restituisce tutti i progetti attivi (ottimizzato con query filtrata)
@@ -63,6 +62,7 @@ func (a *App) GetProjects() ([]ProjectData, error) {
 			CreatedAt:   p.CreatedAt,
 			Archived:    p.Archived,
 			ClosedAt:    p.ClosedAt,
+			NoteText:    p.NoteText,
 		})
 	}
 	return result, nil
@@ -84,6 +84,7 @@ func (a *App) GetArchivedProjects() ([]ProjectData, error) {
 			CreatedAt:   p.CreatedAt,
 			Archived:    p.Archived,
 			ClosedAt:    p.ClosedAt,
+			NoteText:    p.NoteText,
 		})
 	}
 	return result, nil
@@ -112,6 +113,16 @@ func (a *App) DeleteProject(projectID int) error {
 // UpdateProject aggiorna nome e descrizione di un progetto
 func (a *App) UpdateProject(projectID int, name, description string) error {
 	return tracker.AggiornaProgetto(a.db, projectID, name, description)
+}
+
+// UpdateProjectNote aggiorna la nota markdown di un progetto
+func (a *App) UpdateProjectNote(projectID int, noteText string) error {
+	return tracker.AggiornaNotaProgetto(a.db, projectID, noteText)
+}
+
+// MigrateLegacyNotes migra le note dalla vecchia tabella al nuovo sistema
+func (a *App) MigrateLegacyNotes() (int, error) {
+	return tracker.MigraNoteLegacy(a.db)
 }
 
 // GetProjectReport genera il report di un progetto
@@ -181,76 +192,28 @@ func (a *App) SplitSession(sessionID, firstPartSeconds int, firstActivityType, s
 	return tracker.DividiSessione(a.db, sessionID, firstPartSeconds, firstActivityType, secondActivityType)
 }
 
-// === NOTE ===
-
-// NoteData rappresenta una nota
-type NoteData struct {
-	ID          int    `json:"id"`
-	ProjectID   int    `json:"project_id"`
-	ProjectName string `json:"project_name,omitempty"`
-	NoteText    string `json:"note_text"`
-	Timestamp   string `json:"timestamp"`
+// UpdateSessionComplete aggiorna timestamp, durata e tipo attività di una sessione
+func (a *App) UpdateSessionComplete(sessionID int, newTimestamp string, newSeconds int, activityType *string) error {
+	return tracker.AggiornaSessioneCompleta(a.db, sessionID, newTimestamp, newSeconds, activityType)
 }
 
-// GetNotes restituisce le note in un periodo (ottimizzato con JOIN per evitare N+1)
-func (a *App) GetNotes(startDate, endDate string) ([]NoteData, error) {
-	notes, err := tracker.CaricaNotePerPeriodoConProgetto(a.db, startDate, endDate)
+// GetSessionById restituisce una sessione dato l'ID
+func (a *App) GetSessionById(sessionID int) (*SessionData, error) {
+	session, err := tracker.CaricaSessioneById(a.db, sessionID)
 	if err != nil {
 		return nil, err
 	}
 
-	var result []NoteData
-	for _, n := range notes {
-		result = append(result, NoteData{
-			ID:          n.ID,
-			ProjectID:   n.ProjectID,
-			ProjectName: n.ProjectName,
-			NoteText:    n.NoteText,
-			Timestamp:   n.Timestamp,
-		})
-	}
-	return result, nil
-}
-
-// GetAllNotes restituisce tutte le note con filtri opzionali
-func (a *App) GetAllNotes(projectID, searchText, limit string) ([]NoteData, error) {
-	notes, err := tracker.CaricaTutteLeNote(a.db, projectID, searchText, limit)
-	if err != nil {
-		return nil, err
-	}
-
-	var result []NoteData
-	for _, n := range notes {
-		// Recupera nome progetto
-		projectName := ""
-		if project, err := tracker.TrovaProgettoById(a.db, n.ProjectID); err == nil {
-			projectName = project.Name
-		}
-
-		result = append(result, NoteData{
-			ID:          n.ID,
-			ProjectID:   n.ProjectID,
-			ProjectName: projectName,
-			NoteText:    n.NoteText,
-			Timestamp:   n.Timestamp,
-		})
-	}
-	return result, nil
-}
-
-// CreateNote crea una nuova nota
-func (a *App) CreateNote(projectID int, noteText, timestamp string) (int64, error) {
-	return tracker.CreaNote(a.db, projectID, noteText, timestamp)
-}
-
-// UpdateNote aggiorna una nota esistente
-func (a *App) UpdateNote(noteID int, noteText string) error {
-	return tracker.AggiornaNota(a.db, noteID, noteText)
-}
-
-// DeleteNote elimina una nota
-func (a *App) DeleteNote(noteID int) error {
-	return tracker.EliminaNota(a.db, noteID)
+	return &SessionData{
+		ID:           session.ID,
+		AppName:      session.AppName,
+		Seconds:      session.Seconds,
+		ProjectID:    session.ProjectID,
+		ProjectName:  session.ProjectName,
+		SessionType:  session.SessionType,
+		ActivityType: session.ActivityType,
+		Timestamp:    session.Timestamp,
+	}, nil
 }
 
 // === TIPI DI ATTIVITÀ ===
@@ -858,21 +821,6 @@ func (a *App) SaveReportJSON(projectID int) (string, error) {
 			}
 		}
 		report["sessions"] = projectSessions
-	}
-
-	// Recupera note del progetto
-	notes, err := tracker.CaricaNoteProgetto(a.db, projectID)
-	if err == nil {
-		var projectNotes []map[string]interface{}
-		for _, n := range notes {
-			projectNotes = append(projectNotes, map[string]interface{}{
-				"id":         n.ID,
-				"project_id": n.ProjectID,
-				"note_text":  n.NoteText,
-				"timestamp":  n.Timestamp,
-			})
-		}
-		report["notes"] = projectNotes
 	}
 
 	// Converti in JSON
