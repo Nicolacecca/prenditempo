@@ -7,7 +7,7 @@ App desktop nativa per Windows per il tracciamento del tempo lavorativo, svilupp
 - **Tracciamento tempo** - Avvia e ferma il tracciamento con un click, selezionando progetto e tipo di attività
 - **Timeline visuale** - Visualizza le sessioni di lavoro su una timeline interattiva con marker temporali
 - **Tipi di attività** - Crea tipi di attività personalizzati con colori e pattern diversi (solido, strisce, puntini)
-- **Note** - Aggiungi note ai progetti con timestamp automatico
+- **Note Markdown** - Ogni progetto ha una nota in formato Markdown con anteprima live
 - **Archiviazione progetti** - Chiudi e archivia progetti completati con report finale
 - **Report** - Genera report dettagliati con statistiche su tempo totale, sessioni e attività
 - **Esportazione JSON** - Esporta progetti in formato JSON per backup o reimportazione futura
@@ -31,6 +31,16 @@ App desktop nativa per Windows per il tracciamento del tempo lavorativo, svilupp
 1. Scarica l'ultima release dalla pagina [Releases](../../releases)
 2. Estrai `PrendiTempo.exe` in una cartella a tua scelta
 3. Avvia l'applicazione
+
+## Aggiornamento
+
+**IMPORTANTE**: Prima di installare una nuova versione, fai sempre un backup del database:
+
+1. Copia il file `%APPDATA%\PrendiTempo\prenditempo.db`
+2. Salva la copia in un luogo sicuro
+3. Procedi con l'aggiornamento
+
+Il database contiene tutti i tuoi progetti, sessioni e note.
 
 ## Compilazione da sorgente
 
