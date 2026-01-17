@@ -2,8 +2,6 @@
 
 App desktop nativa per Windows per il tracciamento del tempo lavorativo, sviluppata con Go e Wails.
 
-> **Nota**: Questo progetto è stato sviluppato interamente con l'assistenza di intelligenza artificiale (Claude AI).
-
 ## Funzionalità
 
 - **Tracciamento tempo** - Avvia e ferma il tracciamento con un click, selezionando progetto e tipo di attività
