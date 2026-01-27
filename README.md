@@ -104,6 +104,10 @@ prenditempo/
 5. **Archivia progetti** - Clicca sull'icona archivio per chiudere un progetto e generare il report
 6. **Esporta backup** - Dal report puoi esportare in JSON per backup
 
+## Donazioni
+♥️Se il tool ti sembra utile e desideri sostenere il progetto puoi effettuare una piccola donazione al seguente link.
+[https://paypal.me/NicolaCeccarelli?locale.x=it_IT&country.x=IT](url)
+
 ## Licenza
 
 MIT License
@@ -111,3 +115,4 @@ MIT License
 ## Crediti
 
 Sviluppato con l'assistenza di [Claude AI](https://claude.ai) (Anthropic).
+
