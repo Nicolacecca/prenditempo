@@ -106,7 +106,7 @@ prenditempo/
 
 ## Donazioni
 ♥️Se il tool ti sembra utile e desideri sostenere il progetto puoi effettuare una piccola donazione al seguente link.
-[https://paypal.me/NicolaCeccarelli?locale.x=it_IT&country.x=IT](url)
+[https://paypal.me/NicolaCeccarelli?locale.x=it_IT&country.x=IT]
 
 ## Licenza
 
