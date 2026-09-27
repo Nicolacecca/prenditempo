@@ -62,7 +62,7 @@ function displayArchivedProjects(projects) {
         button.addEventListener('click', () => {
             const project = projects.find(item => item.id === Number(button.dataset.projectId));
             if (!project) return;
-            if (button.dataset.archiveAction === 'board') window.openProjectBoard(project.id, project.name, project.note_text || '');
+            if (button.dataset.archiveAction === 'board') window.openProjectBoard(project.id, project.name, project.board_url || '');
             if (button.dataset.archiveAction === 'report') window.viewArchivedReport(project.id);
             if (button.dataset.archiveAction === 'reactivate') window.reactivateArchivedProject(project.id, project.name);
             if (button.dataset.archiveAction === 'delete') window.deleteArchivedProject(project.id, project.name);

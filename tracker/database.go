@@ -96,6 +96,14 @@ func InitDB(filepath string) (*sql.DB, error) {
 			return nil, fmt.Errorf("errore migrazione projects.note_text: %v", err)
 		}
 	}
+	// Migrazione: aggiungi colonna board_url, il link alla lavagna esterna
+	// (Excalidraw o altro provider a scelta dell'utente) collegata al progetto
+	if _, err := db.Exec(`ALTER TABLE projects ADD COLUMN board_url TEXT DEFAULT '';`); err != nil {
+		if !isDuplicateColumnError(err) {
+			db.Close()
+			return nil, fmt.Errorf("errore migrazione projects.board_url: %v", err)
+		}
+	}
 
 	// Crea tabella sessions per tracciare sessioni
 	createSessionsSQL := `
@@ -429,6 +437,28 @@ func AggiornaNotaProgetto(db *sql.DB, projectID int, noteText string) error {
 	return nil
 }
 
+// AggiornaBoardURLProgetto aggiorna l'URL della lavagna esterna collegata al progetto
+func AggiornaBoardURLProgetto(db *sql.DB, projectID int, boardURL string) error {
+	updateSQL := `UPDATE projects SET board_url = ? WHERE id = ?`
+
+	result, err := db.Exec(updateSQL, boardURL, projectID)
+	if err != nil {
+		return fmt.Errorf("errore aggiornamento URL lavagna: %v", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("errore verifica aggiornamento: %v", err)
+	}
+
+	if rowsAffected == 0 {
+		return fmt.Errorf("progetto con ID %d non trovato", projectID)
+	}
+
+	fmt.Printf("[DB] URL lavagna progetto ID %d aggiornato\n", projectID)
+	return nil
+}
+
 // MigraNoteLegacy migra le note dalla vecchia tabella notes al campo note_text dei progetti
 func MigraNoteLegacy(db *sql.DB) (int, error) {
 	// Legge tutte le note vecchie raggruppate per progetto
@@ -516,7 +546,7 @@ func MigraNoteLegacy(db *sql.DB) (int, error) {
 
 // CaricaTuttiProgetti carica tutti i progetti
 func CaricaTuttiProgetti(db *sql.DB) ([]Project, error) {
-	selectSQL := `SELECT id, name, description, created_at, archived, COALESCE(closed_at, ''), COALESCE(note_text, '') FROM projects ORDER BY created_at DESC`
+	selectSQL := `SELECT id, name, description, created_at, archived, COALESCE(closed_at, ''), COALESCE(note_text, ''), COALESCE(board_url, '') FROM projects ORDER BY created_at DESC`
 
 	rows, err := db.Query(selectSQL)
 	if err != nil {
@@ -528,7 +558,7 @@ func CaricaTuttiProgetti(db *sql.DB) ([]Project, error) {
 	for rows.Next() {
 		var p Project
 		var archived int
-		if err := rows.Scan(&p.ID, &p.Name, &p.Description, &p.CreatedAt, &archived, &p.ClosedAt, &p.NoteText); err != nil {
+		if err := rows.Scan(&p.ID, &p.Name, &p.Description, &p.CreatedAt, &archived, &p.ClosedAt, &p.NoteText, &p.BoardURL); err != nil {
 			return nil, fmt.Errorf("errore lettura riga: %v", err)
 		}
 		p.Archived = archived == 1
@@ -540,7 +570,7 @@ func CaricaTuttiProgetti(db *sql.DB) ([]Project, error) {
 
 // CaricaProgettiAttivi carica solo i progetti attivi (non archiviati) - ottimizzato
 func CaricaProgettiAttivi(db *sql.DB) ([]Project, error) {
-	selectSQL := `SELECT id, name, description, created_at, archived, COALESCE(closed_at, ''), COALESCE(note_text, '') FROM projects WHERE archived = 0 ORDER BY created_at DESC`
+	selectSQL := `SELECT id, name, description, created_at, archived, COALESCE(closed_at, ''), COALESCE(note_text, ''), COALESCE(board_url, '') FROM projects WHERE archived = 0 ORDER BY created_at DESC`
 
 	rows, err := db.Query(selectSQL)
 	if err != nil {
@@ -552,7 +582,7 @@ func CaricaProgettiAttivi(db *sql.DB) ([]Project, error) {
 	for rows.Next() {
 		var p Project
 		var archived int
-		if err := rows.Scan(&p.ID, &p.Name, &p.Description, &p.CreatedAt, &archived, &p.ClosedAt, &p.NoteText); err != nil {
+		if err := rows.Scan(&p.ID, &p.Name, &p.Description, &p.CreatedAt, &archived, &p.ClosedAt, &p.NoteText, &p.BoardURL); err != nil {
 			return nil, fmt.Errorf("errore lettura riga: %v", err)
 		}
 		p.Archived = archived == 1
@@ -564,7 +594,7 @@ func CaricaProgettiAttivi(db *sql.DB) ([]Project, error) {
 
 // CaricaProgettiArchiviati carica solo i progetti archiviati - ottimizzato
 func CaricaProgettiArchiviati(db *sql.DB) ([]Project, error) {
-	selectSQL := `SELECT id, name, description, created_at, archived, COALESCE(closed_at, ''), COALESCE(note_text, '') FROM projects WHERE archived = 1 ORDER BY closed_at DESC`
+	selectSQL := `SELECT id, name, description, created_at, archived, COALESCE(closed_at, ''), COALESCE(note_text, ''), COALESCE(board_url, '') FROM projects WHERE archived = 1 ORDER BY closed_at DESC`
 
 	rows, err := db.Query(selectSQL)
 	if err != nil {
@@ -576,7 +606,7 @@ func CaricaProgettiArchiviati(db *sql.DB) ([]Project, error) {
 	for rows.Next() {
 		var p Project
 		var archived int
-		if err := rows.Scan(&p.ID, &p.Name, &p.Description, &p.CreatedAt, &archived, &p.ClosedAt, &p.NoteText); err != nil {
+		if err := rows.Scan(&p.ID, &p.Name, &p.Description, &p.CreatedAt, &archived, &p.ClosedAt, &p.NoteText, &p.BoardURL); err != nil {
 			return nil, fmt.Errorf("errore lettura riga: %v", err)
 		}
 		p.Archived = archived == 1
@@ -588,11 +618,11 @@ func CaricaProgettiArchiviati(db *sql.DB) ([]Project, error) {
 
 // TrovaProgetto cerca un progetto per nome
 func TrovaProgetto(db *sql.DB, name string) (*Project, error) {
-	selectSQL := `SELECT id, name, description, created_at, archived, COALESCE(closed_at, ''), COALESCE(note_text, '') FROM projects WHERE name = ?`
+	selectSQL := `SELECT id, name, description, created_at, archived, COALESCE(closed_at, ''), COALESCE(note_text, ''), COALESCE(board_url, '') FROM projects WHERE name = ?`
 
 	var p Project
 	var archived int
-	err := db.QueryRow(selectSQL, name).Scan(&p.ID, &p.Name, &p.Description, &p.CreatedAt, &archived, &p.ClosedAt, &p.NoteText)
+	err := db.QueryRow(selectSQL, name).Scan(&p.ID, &p.Name, &p.Description, &p.CreatedAt, &archived, &p.ClosedAt, &p.NoteText, &p.BoardURL)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, fmt.Errorf("progetto '%s' non trovato", name)
@@ -606,11 +636,11 @@ func TrovaProgetto(db *sql.DB, name string) (*Project, error) {
 
 // TrovaProgettoById trova un progetto per ID
 func TrovaProgettoById(db *sql.DB, id int) (*Project, error) {
-	selectSQL := `SELECT id, name, description, created_at, archived, COALESCE(closed_at, ''), COALESCE(note_text, '') FROM projects WHERE id = ?`
+	selectSQL := `SELECT id, name, description, created_at, archived, COALESCE(closed_at, ''), COALESCE(note_text, ''), COALESCE(board_url, '') FROM projects WHERE id = ?`
 
 	var p Project
 	var archived int
-	err := db.QueryRow(selectSQL, id).Scan(&p.ID, &p.Name, &p.Description, &p.CreatedAt, &archived, &p.ClosedAt, &p.NoteText)
+	err := db.QueryRow(selectSQL, id).Scan(&p.ID, &p.Name, &p.Description, &p.CreatedAt, &archived, &p.ClosedAt, &p.NoteText, &p.BoardURL)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, fmt.Errorf("progetto con ID %d non trovato", id)
@@ -842,8 +872,8 @@ func GeneraReportChiusura(db *sql.DB, projectID int) (map[string]interface{}, er
 	// Recupera informazioni progetto
 	var project Project
 	var archived int
-	projectSQL := `SELECT id, name, description, created_at, archived, COALESCE(closed_at, ''), COALESCE(note_text, '') FROM projects WHERE id = ?`
-	err := db.QueryRow(projectSQL, projectID).Scan(&project.ID, &project.Name, &project.Description, &project.CreatedAt, &archived, &project.ClosedAt, &project.NoteText)
+	projectSQL := `SELECT id, name, description, created_at, archived, COALESCE(closed_at, ''), COALESCE(note_text, ''), COALESCE(board_url, '') FROM projects WHERE id = ?`
+	err := db.QueryRow(projectSQL, projectID).Scan(&project.ID, &project.Name, &project.Description, &project.CreatedAt, &archived, &project.ClosedAt, &project.NoteText, &project.BoardURL)
 	if err != nil {
 		return nil, fmt.Errorf("errore lettura progetto: %v", err)
 	}

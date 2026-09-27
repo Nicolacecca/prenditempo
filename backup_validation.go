@@ -1,13 +1,7 @@
 package main
 
 import (
-	"crypto/sha256"
-	"encoding/base64"
-	"encoding/hex"
-	"encoding/json"
 	"fmt"
-	"path/filepath"
-	"regexp"
 	"strings"
 	"time"
 )
@@ -47,54 +41,6 @@ func validateBackupData(data ExportDataResult) error {
 		}
 	}
 
-	assetIDs := make(map[string]struct{}, len(data.BoardAssets))
-	const maxTotalBoardAssetsBytes = 100 * 1024 * 1024
-	maxEncodedImageBytes := base64.StdEncoding.EncodedLen(maxBoardImageBytes)
-	totalAssetBytes := 0
-	sha256Pattern := regexp.MustCompile(`^[a-f0-9]{64}$`)
-	for index, asset := range data.BoardAssets {
-		if !boardAssetIDPattern.MatchString(asset.ID) {
-			return fmt.Errorf("immagine %d: identificativo non valido", index+1)
-		}
-		if _, exists := assetIDs[asset.ID]; exists {
-			return fmt.Errorf("identificativo immagine duplicato: %s", asset.ID)
-		}
-		assetIDs[asset.ID] = struct{}{}
-		if _, exists := projectIDs[asset.ProjectID]; !exists {
-			return fmt.Errorf("immagine %d: progetto %d inesistente", index+1, asset.ProjectID)
-		}
-		if asset.FileName != filepath.Base(asset.FileName) || strings.TrimSpace(asset.FileName) == "" || len(asset.FileName) > 255 {
-			return fmt.Errorf("immagine %d: nome file non valido", index+1)
-		}
-		if asset.Size <= 0 || asset.Size > maxBoardImageBytes || len(asset.DataBase64) > maxEncodedImageBytes {
-			return fmt.Errorf("immagine %d: dimensione non valida", index+1)
-		}
-		binaryData, err := base64.StdEncoding.DecodeString(asset.DataBase64)
-		if err != nil || int64(len(binaryData)) != asset.Size {
-			return fmt.Errorf("immagine %d: dati non validi", index+1)
-		}
-		mimeType, err := validateBoardImage(binaryData, asset.FileName)
-		if err != nil || mimeType != asset.MimeType {
-			return fmt.Errorf("immagine %d: formato non valido", index+1)
-		}
-		if !sha256Pattern.MatchString(asset.SHA256) {
-			return fmt.Errorf("immagine %d: checksum non valido", index+1)
-		}
-		hash := sha256.Sum256(binaryData)
-		if hex.EncodeToString(hash[:]) != asset.SHA256 {
-			return fmt.Errorf("immagine %d: checksum non corrispondente", index+1)
-		}
-		totalAssetBytes += len(binaryData)
-		if totalAssetBytes > maxTotalBoardAssetsBytes {
-			return fmt.Errorf("le immagini della lavagna superano il limite complessivo di 100 MiB")
-		}
-		if asset.CreatedAt != "" {
-			if _, err := parseLocalTimestamp(asset.CreatedAt); err != nil {
-				return fmt.Errorf("immagine %d: data creazione non valida", index+1)
-			}
-		}
-	}
-
 	for index, session := range data.Sessions {
 		if strings.TrimSpace(session.AppName) == "" || len(session.AppName) > 500 {
 			return fmt.Errorf("sessione %d: nome applicazione non valido", index+1)
@@ -124,69 +70,6 @@ func validateBackupData(data ExportDataResult) error {
 		}
 		if _, err := parseLocalTimestamp(note.Timestamp); err != nil {
 			return fmt.Errorf("nota %d: %w", index+1, err)
-		}
-	}
-
-	boardProjects := make(map[int]struct{}, len(data.ProjectBoards))
-	for index, board := range data.ProjectBoards {
-		if _, exists := projectIDs[board.ProjectID]; !exists {
-			return fmt.Errorf("lavagna %d: progetto %d inesistente", index+1, board.ProjectID)
-		}
-		if _, exists := boardProjects[board.ProjectID]; exists {
-			return fmt.Errorf("lavagna duplicata per il progetto %d", board.ProjectID)
-		}
-		boardProjects[board.ProjectID] = struct{}{}
-		if board.SchemaVersion != currentBoardSchemaVersion {
-			return fmt.Errorf("lavagna %d: versione schema non supportata", index+1)
-		}
-		if len(board.DocumentJSON) > maxBoardDocumentBytes || !json.Valid([]byte(board.DocumentJSON)) {
-			return fmt.Errorf("lavagna %d: documento non valido", index+1)
-		}
-		if len(board.ViewportJSON) > maxBoardViewportBytes || !json.Valid([]byte(board.ViewportJSON)) {
-			return fmt.Errorf("lavagna %d: visuale non valida", index+1)
-		}
-		if board.UpdatedAt != "" {
-			if _, err := parseLocalTimestamp(board.UpdatedAt); err != nil {
-				return fmt.Errorf("lavagna %d: data aggiornamento non valida", index+1)
-			}
-		}
-	}
-
-	versionIDs := make(map[int64]struct{}, len(data.BoardVersions))
-	versionsPerProject := make(map[int]int)
-	totalVersionBytes := 0
-	for index, version := range data.BoardVersions {
-		if version.ID <= 0 {
-			return fmt.Errorf("versione lavagna %d: ID non valido", index+1)
-		}
-		if _, exists := versionIDs[version.ID]; exists {
-			return fmt.Errorf("versione lavagna duplicata: %d", version.ID)
-		}
-		versionIDs[version.ID] = struct{}{}
-		if _, exists := projectIDs[version.ProjectID]; !exists {
-			return fmt.Errorf("versione lavagna %d: progetto inesistente", index+1)
-		}
-		if strings.TrimSpace(version.Name) == "" || len([]rune(version.Name)) > 80 {
-			return fmt.Errorf("versione lavagna %d: nome non valido", index+1)
-		}
-		if len(version.DocumentJSON) > maxBoardDocumentBytes || !json.Valid([]byte(version.DocumentJSON)) {
-			return fmt.Errorf("versione lavagna %d: documento non valido", index+1)
-		}
-		if len(version.ViewportJSON) > maxBoardViewportBytes || !json.Valid([]byte(version.ViewportJSON)) {
-			return fmt.Errorf("versione lavagna %d: visuale non valida", index+1)
-		}
-		if version.CreatedAt != "" {
-			if _, err := parseLocalTimestamp(version.CreatedAt); err != nil {
-				return fmt.Errorf("versione lavagna %d: data non valida", index+1)
-			}
-		}
-		versionsPerProject[version.ProjectID]++
-		if versionsPerProject[version.ProjectID] > 100 {
-			return fmt.Errorf("troppe versioni per il progetto %d", version.ProjectID)
-		}
-		totalVersionBytes += len(version.DocumentJSON) + len(version.ViewportJSON)
-		if totalVersionBytes > 200*1024*1024 {
-			return fmt.Errorf("la cronologia delle lavagne supera 200 MiB")
 		}
 	}
 
@@ -225,14 +108,14 @@ func validateBackupData(data ExportDataResult) error {
 		if _, err := time.Parse("2006-01-02", event.Date); err != nil {
 			return fmt.Errorf("evento %d: data non valida", index+1)
 		}
-		if event.EventType != "holiday" && event.EventType != "vacation" && event.EventType != "permesso" {
+		if event.EventType != "holiday" && event.EventType != "vacation" && event.EventType != "permesso" && event.EventType != "malattia" && event.EventType != "trasferta" {
 			return fmt.Errorf("evento %d: tipo non valido", index+1)
 		}
 		if event.Hours < 0 || event.Hours > 24 || (event.EventType == "permesso" && event.Hours == 0) {
 			return fmt.Errorf("evento %d: ore non valide", index+1)
 		}
 		if event.EventType != "permesso" && event.Hours != 0 {
-			return fmt.Errorf("evento %d: feste e ferie devono avere zero ore", index+1)
+			return fmt.Errorf("evento %d: feste, ferie, malattia e trasferte devono avere zero ore", index+1)
 		}
 		if _, exists := eventDates[event.Date]; exists {
 			return fmt.Errorf("evento duplicato per %s", event.Date)

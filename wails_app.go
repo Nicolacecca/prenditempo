@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"net/url"
 	"strings"
 	"time"
 	"work-time-tracker-go/tracker"
@@ -43,6 +44,7 @@ type ProjectData struct {
 	Archived    bool   `json:"archived"`
 	ClosedAt    string `json:"closed_at,omitempty"`
 	NoteText    string `json:"note_text"`
+	BoardURL    string `json:"board_url"`
 }
 
 // GetProjects restituisce tutti i progetti attivi (ottimizzato con query filtrata)
@@ -62,6 +64,7 @@ func (a *App) GetProjects() ([]ProjectData, error) {
 			Archived:    p.Archived,
 			ClosedAt:    p.ClosedAt,
 			NoteText:    p.NoteText,
+			BoardURL:    p.BoardURL,
 		})
 	}
 	return result, nil
@@ -84,6 +87,7 @@ func (a *App) GetArchivedProjects() ([]ProjectData, error) {
 			Archived:    p.Archived,
 			ClosedAt:    p.ClosedAt,
 			NoteText:    p.NoteText,
+			BoardURL:    p.BoardURL,
 		})
 	}
 	return result, nil
@@ -167,6 +171,32 @@ func (a *App) UpdateProjectNote(projectID int, noteText string) error {
 // MigrateLegacyNotes migra le note dalla vecchia tabella al nuovo sistema
 func (a *App) MigrateLegacyNotes() (int, error) {
 	return tracker.MigraNoteLegacy(a.db)
+}
+
+// SetProjectBoardURL collega un progetto alla lavagna di un provider esterno (es. Excalidraw)
+func (a *App) SetProjectBoardURL(projectID int, boardURL string) error {
+	if projectID <= 0 {
+		return fmt.Errorf("ID progetto non valido")
+	}
+	boardURL = strings.TrimSpace(boardURL)
+	if boardURL != "" {
+		parsed, err := url.Parse(boardURL)
+		if err != nil || (parsed.Scheme != "http" && parsed.Scheme != "https") || parsed.Host == "" {
+			return fmt.Errorf("URL lavagna non valido: deve iniziare con http:// o https://")
+		}
+	}
+	return tracker.AggiornaBoardURLProgetto(a.db, projectID, boardURL)
+}
+
+// OpenProjectBoardURL apre nel browser predefinito la lavagna collegata al progetto
+func (a *App) OpenProjectBoardURL(boardURL string) error {
+	boardURL = strings.TrimSpace(boardURL)
+	parsed, err := url.Parse(boardURL)
+	if err != nil || (parsed.Scheme != "http" && parsed.Scheme != "https") || parsed.Host == "" {
+		return fmt.Errorf("URL lavagna non valido")
+	}
+	runtime.BrowserOpenURL(a.ctx, boardURL)
+	return nil
 }
 
 // GetProjectReport genera il report di un progetto

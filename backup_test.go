@@ -1,8 +1,6 @@
 package main
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
 	"os"
 	"path/filepath"
 	"testing"
@@ -17,7 +15,7 @@ func TestBackupRoundTripPreservesCurrentData(t *testing.T) {
 	}
 	defer db.Close()
 
-	result, err := db.Exec(`INSERT INTO projects (name, description, note_text) VALUES (?, ?, ?)`, "Progetto", "Descrizione", "# Nota")
+	result, err := db.Exec(`INSERT INTO projects (name, description, note_text, board_url) VALUES (?, ?, ?, ?)`, "Progetto", "Descrizione", "# Nota", "https://excalidraw.com/#room=abc")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -32,31 +30,6 @@ func TestBackupRoundTripPreservesCurrentData(t *testing.T) {
 	if err := tracker.SetDayEvent(db, "2026-08-15", "holiday", 0); err != nil {
 		t.Fatal(err)
 	}
-	if err := tracker.SaveProjectBoard(db, tracker.ProjectBoard{
-		ProjectID:          int(projectID),
-		SchemaVersion:      1,
-		DocumentJSON:       `{"objects":[{"type":"text"}]}`,
-		ViewportJSON:       `{"viewportTransform":[1,0,0,1,0,0]}`,
-		LegacyNoteImported: true,
-	}); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := tracker.CreateBoardVersion(db, tracker.BoardVersion{
-		ProjectID: int(projectID), Name: "Versione prova",
-		DocumentJSON: `{"objects":[{"type":"text","text":"storico"}]}`,
-		ViewportJSON: `{}`,
-	}); err != nil {
-		t.Fatal(err)
-	}
-	imageData := []byte{0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 0}
-	imageHash := sha256.Sum256(imageData)
-	assetID := "0123456789abcdef0123456789abcdef"
-	if _, err := db.Exec(`
-		INSERT INTO board_assets (id, project_id, file_name, mime_type, data, size, sha256)
-		VALUES (?, ?, 'pixel.png', 'image/png', ?, ?, ?)`,
-		assetID, projectID, imageData, len(imageData), hex.EncodeToString(imageHash[:])); err != nil {
-		t.Fatal(err)
-	}
 
 	InitGlobalState(db)
 	app := NewApp()
@@ -68,17 +41,14 @@ func TestBackupRoundTripPreservesCurrentData(t *testing.T) {
 	if backup.Version != "2.3" || len(backup.Projects) != 1 {
 		t.Fatalf("backup inatteso: versione=%s progetti=%d", backup.Version, len(backup.Projects))
 	}
-	if backup.Projects[0].NoteText != "# Nota" || len(backup.Settings) == 0 || len(backup.DayEvents) != 1 || len(backup.ProjectBoards) != 1 || len(backup.BoardAssets) != 1 || len(backup.BoardVersions) != 1 {
+	if backup.Projects[0].NoteText != "# Nota" || backup.Projects[0].BoardURL != "https://excalidraw.com/#room=abc" || len(backup.Settings) == 0 || len(backup.DayEvents) != 1 {
 		t.Fatal("il backup non contiene tutti i dati correnti")
 	}
 
-	if _, err := db.Exec(`UPDATE projects SET note_text = 'modificata'`); err != nil {
+	if _, err := db.Exec(`UPDATE projects SET note_text = 'modificata', board_url = ''`); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := db.Exec(`DELETE FROM day_events`); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := db.Exec(`DELETE FROM board_assets`); err != nil {
 		t.Fatal(err)
 	}
 	if err := tracker.SetSetting(db, "idle_threshold", "2"); err != nil {
@@ -88,12 +58,15 @@ func TestBackupRoundTripPreservesCurrentData(t *testing.T) {
 	if err := app.ImportData(*backup); err != nil {
 		t.Fatal(err)
 	}
-	var note string
-	if err := db.QueryRow(`SELECT note_text FROM projects WHERE name = 'Progetto'`).Scan(&note); err != nil {
+	var note, boardURL string
+	if err := db.QueryRow(`SELECT note_text, board_url FROM projects WHERE name = 'Progetto'`).Scan(&note, &boardURL); err != nil {
 		t.Fatal(err)
 	}
 	if note != "# Nota" {
 		t.Fatalf("nota ripristinata = %q", note)
+	}
+	if boardURL != "https://excalidraw.com/#room=abc" {
+		t.Fatalf("URL lavagna ripristinato = %q", boardURL)
 	}
 	setting, err := tracker.GetSetting(db, "idle_threshold")
 	if err != nil || setting != "9" {
@@ -105,28 +78,6 @@ func TestBackupRoundTripPreservesCurrentData(t *testing.T) {
 	}
 	if eventCount != 1 {
 		t.Fatalf("eventi ripristinati = %d", eventCount)
-	}
-	var boardDocument string
-	if err := db.QueryRow(`SELECT document_json FROM project_boards`).Scan(&boardDocument); err != nil {
-		t.Fatal(err)
-	}
-	if boardDocument != `{"objects":[{"type":"text"}]}` {
-		t.Fatalf("lavagna ripristinata = %q", boardDocument)
-	}
-	var restoredImage []byte
-	var restoredHash string
-	if err := db.QueryRow(`SELECT data, sha256 FROM board_assets WHERE id = ?`, assetID).Scan(&restoredImage, &restoredHash); err != nil {
-		t.Fatal(err)
-	}
-	if string(restoredImage) != string(imageData) || restoredHash != hex.EncodeToString(imageHash[:]) {
-		t.Fatal("immagine della lavagna non ripristinata correttamente")
-	}
-	var restoredVersionName string
-	if err := db.QueryRow(`SELECT name FROM board_versions`).Scan(&restoredVersionName); err != nil {
-		t.Fatal(err)
-	}
-	if restoredVersionName != "Versione prova" {
-		t.Fatalf("versione lavagna ripristinata = %q", restoredVersionName)
 	}
 }
 

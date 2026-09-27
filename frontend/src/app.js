@@ -16,7 +16,7 @@ import { getProjects, loadProjects } from './modules/projects.js';
 import { loadArchivedProjects } from './modules/archive.js';
 import { initializeTracking } from './modules/tracking.js';
 import { initializeUIActions } from './ui-actions.js';
-import { initializeProjectBoard } from './modules/board.js';
+import './modules/board-link.js';
 
 // === UTILITY FUNCTIONS ===
 
@@ -25,7 +25,6 @@ import { initializeProjectBoard } from './modules/board.js';
 let activityTypes = [];
 
 initializeUIActions();
-initializeProjectBoard();
 
 configureSessionModule({
     getActivityTypes: () => activityTypes,

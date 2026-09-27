@@ -11,6 +11,7 @@ type Project struct {
 	Archived    bool
 	ClosedAt    string
 	NoteText    string
+	BoardURL    string
 }
 
 // StampaInfo stampa le informazioni del progetto

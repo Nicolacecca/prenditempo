@@ -46,7 +46,7 @@ export function displayProjects(projects) {
             <div style="display: flex; gap: 10px;">
                 <button class="btn" style="width: auto; padding: 8px 16px; margin: 0;"
                         data-project-action="board" data-project-id="${Number(project.id)}"
-                        title="Apri la lavagna del progetto">▦ Lavagna</button>
+                        title="Apri la lavagna del progetto">Lavagna</button>
                 <button class="btn" style="width: auto; padding: 8px 16px; margin: 0;"
                         data-project-action="edit" data-project-id="${Number(project.id)}">Modifica</button>
             </div>
@@ -59,7 +59,7 @@ export function displayProjects(projects) {
             const project = projects.find(item => item.id === Number(button.dataset.projectId));
             if (!project) return;
             if (button.dataset.projectAction === 'board') {
-                window.openProjectBoard(project.id, project.name, project.note_text || '');
+                window.openProjectBoard(project.id, project.name, project.board_url || '');
             } else {
                 window.openEditProjectModal(project.id, project.name, project.description || '');
             }

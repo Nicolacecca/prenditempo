@@ -7,10 +7,10 @@ App desktop nativa per Windows per il tracciamento del tempo lavorativo, svilupp
 - **Tracciamento tempo** - Avvia e ferma il tracciamento con un click, selezionando progetto e tipo di attività
 - **Timeline visuale** - Visualizza le sessioni di lavoro su una timeline interattiva con marker temporali
 - **Tipi di attività** - Crea tipi di attività personalizzati con colori e pattern diversi (solido, strisce, puntini)
-- **Lavagna per progetto** - Canvas infinito desktop-first con ribbon originale a schede, raccolta forme, testo, note, tabelle, immagini, video esterni, cartelle e siti Internet, frecce collegate, pannello oggetti/livelli, minimappa, cestino, versioni recuperabili, esportazione PNG/PDF, pan, zoom, undo/redo e autosalvataggio
+- **Lavagna per progetto** - Collega ogni progetto alla lavagna di un provider esterno a tua scelta (Excalidraw di default, oppure Miro, Figma...) con un semplice URL
 - **Archiviazione progetti** - Chiudi e archivia progetti completati con report finale
 - **Report** - Genera report dettagliati con statistiche su tempo totale, sessioni e attività
-- **Esportazione JSON** - Esporta progetti, lavagne, immagini e versioni in un backup JSON verificato e reimportabile
+- **Esportazione JSON** - Esporta progetti, sessioni e note in un backup JSON verificato e reimportabile
 - **Stampa PDF** - Stampa i report direttamente in PDF
 - **Rilevamento inattività** - Rileva i periodi di inattività e permette di attribuire il tempo al progetto corretto
 - **Avvio automatico** - Opzione per avviare l'app automaticamente con Windows
@@ -78,11 +78,6 @@ wails dev
 - **Framework desktop**: [Wails v2](https://wails.io/)
 - **Database**: SQLite
 - **UI Theme**: Dark mode con accenti arancioni
-- **Canvas**: Fabric.js
-
-## Sviluppi pianificati
-
-- **Lavagna infinita avanzata** - Ulteriori miglioramenti di prestazioni, accessibilità e strumenti grafici. La specifica tecnica è descritta in [docs/INFINITE_WHITEBOARD.md](docs/INFINITE_WHITEBOARD.md).
 
 ## Struttura del progetto
 

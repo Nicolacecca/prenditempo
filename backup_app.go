@@ -2,7 +2,6 @@ package main
 
 import (
 	"database/sql"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -22,6 +21,7 @@ type ExportProject struct {
 	Archived    bool   `json:"archived"`
 	ClosedAt    string `json:"closed_at,omitempty"`
 	NoteText    string `json:"note_text,omitempty"`
+	BoardURL    string `json:"board_url,omitempty"`
 }
 
 type ExportSession struct {
@@ -60,36 +60,6 @@ type ExportDayEvent struct {
 	Hours     float64 `json:"hours"`
 }
 
-type ExportProjectBoard struct {
-	ProjectID          int    `json:"project_id"`
-	SchemaVersion      int    `json:"schema_version"`
-	DocumentJSON       string `json:"document_json"`
-	ViewportJSON       string `json:"viewport_json"`
-	LegacyNoteImported bool   `json:"legacy_note_imported"`
-	UpdatedAt          string `json:"updated_at,omitempty"`
-}
-
-type ExportBoardAsset struct {
-	ID         string `json:"id"`
-	ProjectID  int    `json:"project_id"`
-	FileName   string `json:"file_name"`
-	MimeType   string `json:"mime_type"`
-	Size       int64  `json:"size"`
-	SHA256     string `json:"sha256"`
-	DataBase64 string `json:"data_base64"`
-	CreatedAt  string `json:"created_at,omitempty"`
-}
-
-type ExportBoardVersion struct {
-	ID           int64  `json:"id"`
-	ProjectID    int    `json:"project_id"`
-	Name         string `json:"name"`
-	IsAutomatic  bool   `json:"is_automatic"`
-	DocumentJSON string `json:"document_json"`
-	ViewportJSON string `json:"viewport_json"`
-	CreatedAt    string `json:"created_at,omitempty"`
-}
-
 // ExportDataResult rappresenta i dati esportati
 type ExportDataResult struct {
 	ExportDate    string               `json:"export_date"`
@@ -100,9 +70,6 @@ type ExportDataResult struct {
 	ActivityTypes []ExportActivityType `json:"activity_types"`
 	Settings      []ExportSetting      `json:"settings,omitempty"`
 	DayEvents     []ExportDayEvent     `json:"day_events,omitempty"`
-	ProjectBoards []ExportProjectBoard `json:"project_boards,omitempty"`
-	BoardAssets   []ExportBoardAsset   `json:"board_assets,omitempty"`
-	BoardVersions []ExportBoardVersion `json:"board_versions,omitempty"`
 }
 
 // ExportData esporta tutti i dati
@@ -119,7 +86,7 @@ func (a *App) ExportData() (*ExportDataResult, error) {
 	}
 
 	// Esporta progetti
-	rows, err := tx.Query("SELECT id, name, COALESCE(description, ''), created_at, archived, COALESCE(closed_at, ''), COALESCE(note_text, '') FROM projects")
+	rows, err := tx.Query("SELECT id, name, COALESCE(description, ''), created_at, archived, COALESCE(closed_at, ''), COALESCE(note_text, ''), COALESCE(board_url, '') FROM projects")
 	if err != nil {
 		return nil, err
 	}
@@ -127,14 +94,14 @@ func (a *App) ExportData() (*ExportDataResult, error) {
 
 	for rows.Next() {
 		var id int
-		var name, description, createdAt, closedAt, noteText string
+		var name, description, createdAt, closedAt, noteText, boardURL string
 		var archived int
-		if err := rows.Scan(&id, &name, &description, &createdAt, &archived, &closedAt, &noteText); err != nil {
+		if err := rows.Scan(&id, &name, &description, &createdAt, &archived, &closedAt, &noteText, &boardURL); err != nil {
 			return nil, err
 		}
 		result.Projects = append(result.Projects, ExportProject{
 			ID: id, Name: name, Description: description, CreatedAt: createdAt,
-			Archived: archived == 1, ClosedAt: closedAt, NoteText: noteText,
+			Archived: archived == 1, ClosedAt: closedAt, NoteText: noteText, BoardURL: boardURL,
 		})
 	}
 	if err := rows.Err(); err != nil {
@@ -187,89 +154,6 @@ func (a *App) ExportData() (*ExportDataResult, error) {
 			return nil, err
 		}
 		result.Notes = append(result.Notes, ExportNote{ID: id, ProjectID: projectID, NoteText: noteText, Timestamp: timestamp})
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	rows.Close()
-
-	rows, err = tx.Query(`
-		SELECT id, project_id, name, is_automatic, document_json, viewport_json, created_at
-		FROM board_versions
-		ORDER BY project_id, created_at, id`)
-	if err != nil {
-		return nil, err
-	}
-	for rows.Next() {
-		var version ExportBoardVersion
-		var automatic int
-		if err := rows.Scan(
-			&version.ID, &version.ProjectID, &version.Name, &automatic,
-			&version.DocumentJSON, &version.ViewportJSON, &version.CreatedAt,
-		); err != nil {
-			return nil, err
-		}
-		version.IsAutomatic = automatic == 1
-		result.BoardVersions = append(result.BoardVersions, version)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	rows.Close()
-
-	rows, err = tx.Query(`
-		SELECT project_id, schema_version, document_json, viewport_json,
-		       legacy_note_imported, updated_at
-		FROM project_boards
-		ORDER BY project_id`)
-	if err != nil {
-		return nil, err
-	}
-	for rows.Next() {
-		var board ExportProjectBoard
-		var imported int
-		if err := rows.Scan(
-			&board.ProjectID,
-			&board.SchemaVersion,
-			&board.DocumentJSON,
-			&board.ViewportJSON,
-			&imported,
-			&board.UpdatedAt,
-		); err != nil {
-			return nil, err
-		}
-		board.LegacyNoteImported = imported == 1
-		result.ProjectBoards = append(result.ProjectBoards, board)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	rows.Close()
-
-	rows, err = tx.Query(`
-		SELECT id, project_id, file_name, mime_type, size, sha256, data, created_at
-		FROM board_assets
-		ORDER BY project_id, created_at, id`)
-	if err != nil {
-		return nil, err
-	}
-	for rows.Next() {
-		var asset ExportBoardAsset
-		var binaryData []byte
-		if err := rows.Scan(
-			&asset.ID,
-			&asset.ProjectID,
-			&asset.FileName,
-			&asset.MimeType,
-			&asset.Size,
-			&asset.SHA256,
-			&binaryData,
-			&asset.CreatedAt,
-		); err != nil {
-			return nil, err
-		}
-		asset.DataBase64 = base64.StdEncoding.EncodeToString(binaryData)
-		result.BoardAssets = append(result.BoardAssets, asset)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
@@ -360,9 +244,6 @@ func (a *App) ImportData(data ExportDataResult) error {
 	// Elimina dati esistenti
 	deleteStatements := []string{
 		"DELETE FROM pending_tracking",
-		"DELETE FROM board_versions",
-		"DELETE FROM board_assets",
-		"DELETE FROM project_boards",
 		"DELETE FROM notes",
 		"DELETE FROM sessions",
 		"DELETE FROM projects",
@@ -402,8 +283,8 @@ func (a *App) ImportData(data ExportDataResult) error {
 		}
 
 		result, err := tx.Exec(
-			"INSERT INTO projects (name, description, created_at, archived, closed_at, note_text) VALUES (?, ?, ?, ?, ?, ?)",
-			p.Name, p.Description, createdAt, archived, closedAt, p.NoteText,
+			"INSERT INTO projects (name, description, created_at, archived, closed_at, note_text, board_url) VALUES (?, ?, ?, ?, ?, ?, ?)",
+			p.Name, p.Description, createdAt, archived, closedAt, p.NoteText, p.BoardURL,
 		)
 		if err != nil {
 			return err
@@ -413,88 +294,6 @@ func (a *App) ImportData(data ExportDataResult) error {
 			return err
 		}
 		projectIDMap[p.ID] = newID
-	}
-
-	for _, board := range data.ProjectBoards {
-		newProjectID, exists := projectIDMap[board.ProjectID]
-		if !exists {
-			continue
-		}
-		imported := 0
-		if board.LegacyNoteImported {
-			imported = 1
-		}
-		updatedAt := board.UpdatedAt
-		if updatedAt == "" {
-			updatedAt = time.Now().Format("2006-01-02 15:04:05")
-		}
-		if _, err := tx.Exec(`
-			INSERT INTO project_boards (
-				project_id, schema_version, document_json, viewport_json,
-				legacy_note_imported, updated_at
-			) VALUES (?, ?, ?, ?, ?, ?)`,
-			newProjectID,
-			board.SchemaVersion,
-			board.DocumentJSON,
-			board.ViewportJSON,
-			imported,
-			updatedAt,
-		); err != nil {
-			return err
-		}
-	}
-
-	for _, asset := range data.BoardAssets {
-		newProjectID, exists := projectIDMap[asset.ProjectID]
-		if !exists {
-			continue
-		}
-		binaryData, err := base64.StdEncoding.DecodeString(asset.DataBase64)
-		if err != nil {
-			return fmt.Errorf("errore decodifica immagine %s: %w", asset.ID, err)
-		}
-		createdAt := asset.CreatedAt
-		if createdAt == "" {
-			createdAt = time.Now().Format("2006-01-02 15:04:05")
-		}
-		if _, err := tx.Exec(`
-			INSERT INTO board_assets (
-				id, project_id, file_name, mime_type, data, size, sha256, created_at
-			) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-			asset.ID,
-			newProjectID,
-			asset.FileName,
-			asset.MimeType,
-			binaryData,
-			asset.Size,
-			asset.SHA256,
-			createdAt,
-		); err != nil {
-			return err
-		}
-	}
-
-	for _, version := range data.BoardVersions {
-		newProjectID, exists := projectIDMap[version.ProjectID]
-		if !exists {
-			continue
-		}
-		automatic := 0
-		if version.IsAutomatic {
-			automatic = 1
-		}
-		createdAt := version.CreatedAt
-		if createdAt == "" {
-			createdAt = time.Now().Format("2006-01-02 15:04:05")
-		}
-		if _, err := tx.Exec(`
-			INSERT INTO board_versions (
-				project_id, name, is_automatic, document_json, viewport_json, created_at
-			) VALUES (?, ?, ?, ?, ?, ?)`,
-			newProjectID, version.Name, automatic, version.DocumentJSON, version.ViewportJSON, createdAt,
-		); err != nil {
-			return err
-		}
 	}
 
 	// Importa sessioni
