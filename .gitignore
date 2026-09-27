@@ -29,9 +29,6 @@ frontend/src/wailsjs/
 .DS_Store
 Thumbs.db
 
-# Go
-go.sum
-
 # Temporary files
 *.tmp
 *.log

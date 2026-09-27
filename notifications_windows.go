@@ -1,4 +1,4 @@
-//go:build wails
+//go:build windows
 
 package main
 
@@ -7,7 +7,6 @@ import (
 	"log"
 	"os"
 	"os/exec"
-	"path/filepath"
 )
 
 // ShowIdleNotification mostra una notifica toast quando viene rilevato l'idle
@@ -60,15 +59,20 @@ Start-Sleep -Milliseconds 500
 $balloon.Dispose()
 `, escapeForPS(title), escapeForPS(message))
 
-	// Scrivi in un file temporaneo
-	tempDir := os.TempDir()
-	scriptPath := filepath.Join(tempDir, "prenditempo_notification.ps1")
-
-	err := os.WriteFile(scriptPath, []byte(psScript), 0644)
+	// Usa un nome univoco: istanze o notifiche concorrenti non si sovrascrivono.
+	scriptFile, err := os.CreateTemp("", "prenditempo_notification_*.ps1")
 	if err != nil {
 		return fmt.Errorf("errore creazione script: %v", err)
 	}
+	scriptPath := scriptFile.Name()
 	defer os.Remove(scriptPath)
+	if _, err := scriptFile.WriteString(psScript); err != nil {
+		scriptFile.Close()
+		return fmt.Errorf("errore scrittura script: %v", err)
+	}
+	if err := scriptFile.Close(); err != nil {
+		return fmt.Errorf("errore chiusura script: %v", err)
+	}
 
 	// Esegui lo script
 	cmd := exec.Command("powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", scriptPath)

@@ -1,5 +1,3 @@
-//go:build wails
-
 package main
 
 import (
@@ -29,21 +27,32 @@ func getExeDir() string {
 	return filepath.Dir(exe)
 }
 
-func init() {
-	// Crea file di log nella directory dell'eseguibile
-	exeDir := getExeDir()
-	logPath := filepath.Join(exeDir, "timetracker.log")
-	// Usa permessi 0600 (solo proprietario può leggere/scrivere) per sicurezza
+func main() {
+	dataDir, err := getDataDir()
+	if err != nil {
+		log.Fatal("Errore inizializzazione directory dati:", err)
+	}
+
+	logPath := filepath.Join(dataDir, logFileName)
 	logFile, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0600)
 	if err == nil {
+		defer logFile.Close()
 		log.SetOutput(logFile)
 	}
-}
 
-func main() {
-	// Inizializza database nella directory dell'eseguibile
+	// Le versioni precedenti salvavano il database accanto all'eseguibile.
+	// Se necessario lo copiamo nella directory dati, mantenendo l'originale.
 	exeDir := getExeDir()
-	dbPath := filepath.Join(exeDir, "timetracker.db")
+	dbPath := filepath.Join(dataDir, databaseFileName)
+	legacyDBPath := filepath.Join(exeDir, databaseFileName)
+	migrated, err := migrateLegacyDatabase(legacyDBPath, dbPath)
+	if err != nil {
+		log.Fatal("Errore migrazione database:", err)
+	}
+	if migrated {
+		log.Printf("[STARTUP] Database migrato da %s a %s; la copia originale è stata mantenuta\n", legacyDBPath, dbPath)
+	}
+
 	db, err := tracker.InitDB(dbPath)
 	if err != nil {
 		log.Fatal("Errore DB:", err)
@@ -79,10 +88,8 @@ func main() {
 		BackgroundColour: &options.RGBA{R: 26, G: 26, B: 26, A: 1},
 		OnStartup:        app.startup,
 		OnShutdown: func(ctx context.Context) {
-			// Ferma tracking se attivo
-			if globalIsTracking {
-				app.StopTracking()
-			}
+			// StopTracking gestisce in modo sincronizzato anche il caso inattivo.
+			_, _ = app.StopTracking()
 			db.Close()
 		},
 		Bind: []interface{}{

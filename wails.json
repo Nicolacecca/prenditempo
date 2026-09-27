@@ -2,7 +2,7 @@
   "$schema": "https://wails.io/schemas/config.v2.json",
   "name": "PrendiTempo",
   "outputfilename": "PrendiTempo",
-  "frontend:install": "npm install",
+  "frontend:install": "npm ci",
   "frontend:build": "npm run build",
   "frontend:dev:watcher": "npm run dev",
   "frontend:dev:serverUrl": "auto",
@@ -14,7 +14,7 @@
     "companyName": "PrendiTempo",
     "productName": "PrendiTempo",
     "productVersion": "1.0.0",
-    "copyright": "2024",
+    "copyright": "2026",
     "comments": "Time Tracker Application"
   },
   "wailsjsdir": "./frontend/src"

@@ -4,10 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PrendiTempo</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,450;9..144,500;9..144,560;9..144,600&family=Work+Sans:wght@400;500;600&display=swap">
     <link rel="stylesheet" href="src/style.css">
-    <!-- EasyMDE Markdown Editor -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/easymde/dist/easymde.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/easymde/dist/easymde.min.js"></script>
     <style>
         /* Pattern Option Styles */
         .pattern-option {
@@ -16,27 +16,27 @@
             align-items: center;
             gap: 8px;
             padding: 12px;
-            border: 1px solid #4a4a4a;
-            border-radius: 16px;
+            border: 1px solid #443A2E;
+            border-radius: 10px;
             cursor: pointer;
             transition: all 0.2s;
-            background: #1a1a1a;
+            background: #1C1815;
         }
 
         .pattern-option:hover {
-            border-color: #ff6b2b;
-            background: #2a2a2a;
+            border-color: #C99A54;
+            background: #262019;
         }
 
         .pattern-option.selected {
-            border-color: #ff6b2b;
-            background: #2a2a2a;
-            box-shadow: 0 0 0 3px rgba(255, 107, 43, 0.2);
+            border-color: #C99A54;
+            background: #262019;
+            box-shadow: 0 0 0 3px rgba(201, 154, 84, 0.2);
         }
 
         .pattern-option span {
             font-size: 0.8em;
-            color: #999999;
+            color: #9C9086;
             font-weight: 500;
         }
 
@@ -46,9 +46,9 @@
             border-radius: 4px;
         }
 
-        .pattern-solid { background: #ff6b2b; }
-        .pattern-stripes { background: repeating-linear-gradient(45deg, #ff6b2b, #ff6b2b 5px, #ff8b5a 5px, #ff8b5a 10px); }
-        .pattern-dots { background-color: #ff6b2b; background-image: radial-gradient(circle, #ffffff 2px, transparent 2px); background-size: 10px 10px; }
+        .pattern-solid { background: #C99A54; }
+        .pattern-stripes { background: repeating-linear-gradient(45deg, #C99A54, #C99A54 5px, #D9AE6C 5px, #D9AE6C 10px); }
+        .pattern-dots { background-color: #C99A54; background-image: radial-gradient(circle, #E4DACB 2px, transparent 2px); background-size: 10px 10px; }
 
         /* Range input styling */
         input[type="range"] {
@@ -56,7 +56,7 @@
             width: 100%;
             height: 8px;
             border-radius: 4px;
-            background: #3a3a3a;
+            background: #322B24;
             outline: none;
         }
 
@@ -65,7 +65,7 @@
             width: 20px;
             height: 20px;
             border-radius: 50%;
-            background: #ff6b2b;
+            background: #C99A54;
             cursor: pointer;
         }
 
@@ -75,17 +75,17 @@
             justify-content: space-between;
             align-items: center;
             padding: 15px;
-            background: #1a1a1a;
-            border-radius: 16px;
-            border-left: 4px solid #ff6b2b;
+            background: #1C1815;
+            border-radius: 10px;
+            border-left: 4px solid #C99A54;
             cursor: move;
             transition: all 0.2s;
-            border: 1px solid #3a3a3a;
+            border: 1px solid #322B24;
             margin-bottom: 10px;
         }
 
         .activity-type-item:hover {
-            background: #2a2a2a;
+            background: #262019;
         }
 
         .activity-type-item.dragging {
@@ -107,94 +107,14 @@
             content: '';
             width: 4px;
             height: 4px;
-            background: #666666;
+            background: #6B6259;
             border-radius: 50%;
             box-shadow:
-                8px 0 0 #666666,
-                0 8px 0 #666666,
-                8px 8px 0 #666666,
-                0 16px 0 #666666,
-                8px 16px 0 #666666;
-        }
-
-        /* EasyMDE Dark Theme */
-        .EasyMDEContainer {
-            background: #1a1a1a;
-        }
-        .EasyMDEContainer .CodeMirror {
-            background: #1a1a1a;
-            color: #ffffff;
-            border: 1px solid #3a3a3a;
-            border-radius: 8px;
-        }
-        .EasyMDEContainer .CodeMirror-cursor {
-            border-left: 1px solid #ffffff;
-        }
-        .EasyMDEContainer .editor-toolbar {
-            background: #242424;
-            border: 1px solid #3a3a3a;
-            border-bottom: none;
-            border-radius: 8px 8px 0 0;
-        }
-        .EasyMDEContainer .editor-toolbar button {
-            color: #999999 !important;
-        }
-        .EasyMDEContainer .editor-toolbar button:hover {
-            background: #3a3a3a;
-            color: #ffffff !important;
-        }
-        .EasyMDEContainer .editor-toolbar button.active {
-            background: #ff6b2b;
-            color: #ffffff !important;
-        }
-        .EasyMDEContainer .editor-toolbar i.separator {
-            border-left-color: #3a3a3a;
-            border-right-color: #3a3a3a;
-        }
-        .EasyMDEContainer .editor-statusbar {
-            color: #999999;
-            background: #242424;
-            border: 1px solid #3a3a3a;
-            border-top: none;
-            border-radius: 0 0 8px 8px;
-        }
-        .EasyMDEContainer .CodeMirror .CodeMirror-code .cm-header-1 { color: #ff6b2b; }
-        .EasyMDEContainer .CodeMirror .CodeMirror-code .cm-header-2 { color: #ff8b5a; }
-        .EasyMDEContainer .CodeMirror .CodeMirror-code .cm-header-3 { color: #ffa070; }
-        .EasyMDEContainer .CodeMirror .CodeMirror-code .cm-link { color: #3b82f6; }
-        .EasyMDEContainer .CodeMirror .CodeMirror-code .cm-url { color: #3b82f6; }
-        .EasyMDEContainer .CodeMirror .CodeMirror-code .cm-strong { color: #ffffff; }
-        .EasyMDEContainer .CodeMirror .CodeMirror-code .cm-em { color: #cccccc; }
-        .EasyMDEContainer .CodeMirror .CodeMirror-code .cm-comment { color: #6b7280; }
-        .EasyMDEContainer .CodeMirror .CodeMirror-code .cm-quote { color: #9ca3af; }
-        .EasyMDEContainer .CodeMirror-selected { background: rgba(255, 107, 43, 0.3) !important; }
-        .EasyMDEContainer .CodeMirror-focused .CodeMirror-selected { background: rgba(255, 107, 43, 0.3) !important; }
-        .EasyMDEContainer .editor-preview {
-            background: #1a1a1a;
-            color: #ffffff;
-        }
-        .EasyMDEContainer .editor-preview h1,
-        .EasyMDEContainer .editor-preview h2,
-        .EasyMDEContainer .editor-preview h3 {
-            color: #ff6b2b;
-            border-bottom: 1px solid #3a3a3a;
-        }
-        .EasyMDEContainer .editor-preview a { color: #3b82f6; }
-        .EasyMDEContainer .editor-preview code {
-            background: #242424;
-            color: #ff6b2b;
-            padding: 2px 6px;
-            border-radius: 4px;
-        }
-        .EasyMDEContainer .editor-preview pre {
-            background: #242424;
-            border: 1px solid #3a3a3a;
-            border-radius: 8px;
-        }
-        .EasyMDEContainer .editor-preview blockquote {
-            border-left: 4px solid #ff6b2b;
-            color: #9ca3af;
-            background: #242424;
+                8px 0 0 #6B6259,
+                0 8px 0 #6B6259,
+                8px 8px 0 #6B6259,
+                0 16px 0 #6B6259,
+                8px 16px 0 #6B6259;
         }
 
         /* Custom Radio Button Styles */
@@ -204,20 +124,20 @@
             gap: 12px;
             cursor: pointer;
             padding: 15px 20px;
-            border: 2px solid #4a4a4a;
+            border: 2px solid #443A2E;
             border-radius: 12px;
-            background: #1a1a1a;
+            background: #1C1815;
             flex: 1;
             transition: all 0.2s;
         }
         .radio-option:hover {
-            border-color: #ff6b2b;
-            background: #2a2a2a;
+            border-color: #C99A54;
+            background: #262019;
         }
         .radio-option.selected {
-            border-color: #ff6b2b;
-            background: #2a2a2a;
-            box-shadow: 0 0 0 3px rgba(255, 107, 43, 0.2);
+            border-color: #C99A54;
+            background: #262019;
+            box-shadow: 0 0 0 3px rgba(201, 154, 84, 0.2);
         }
         .radio-option input[type="radio"] {
             display: none;
@@ -225,7 +145,7 @@
         .radio-option .radio-circle {
             width: 24px;
             height: 24px;
-            border: 2px solid #6b7280;
+            border: 2px solid #443A2E;
             border-radius: 50%;
             display: flex;
             align-items: center;
@@ -234,14 +154,14 @@
             flex-shrink: 0;
         }
         .radio-option.selected .radio-circle {
-            border-color: #ff6b2b;
+            border-color: #C99A54;
         }
         .radio-option .radio-circle::after {
             content: '';
             width: 12px;
             height: 12px;
             border-radius: 50%;
-            background: #ff6b2b;
+            background: #C99A54;
             transform: scale(0);
             transition: transform 0.2s;
         }
@@ -249,29 +169,30 @@
             transform: scale(1);
         }
         .radio-option span {
-            color: #ffffff;
+            color: #E4DACB;
             font-weight: 500;
             font-size: 1em;
         }
     </style>
 </head>
 <body>
-    <!-- Header -->
-    <div class="header">
-        <div class="header-content">
-            <div class="logo">PrendiTempo</div>
-            <nav class="nav">
-                <a href="#" class="nav-link active" id="navDashboard" onclick="showSection('dashboard'); return false;">Dashboard</a>
-                <a href="#" class="nav-link" id="navArchive" onclick="showSection('archive'); return false;">Archivio</a>
-                <a href="#" class="nav-link" id="navSettings" onclick="showSection('settings'); return false;">Impostazioni</a>
-            </nav>
-        </div>
-    </div>
+<div class="app-shell">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+        <div class="logo">PrendiTempo</div>
+        <nav class="nav">
+            <a href="#" class="nav-link active" id="navDashboard" data-action="showSection" data-action-arg="dashboard">Panoramica</a>
+            <a href="#" class="nav-link" id="navArchive" data-action="showSection" data-action-arg="archive">Archivio</a>
+            <a href="#" class="nav-link" id="navResoconto" data-action="showSection" data-action-arg="resoconto">Resoconto</a>
+            <a href="#" class="nav-link" id="navSettings" data-action="showSection" data-action-arg="settings">Impostazioni</a>
+        </nav>
+    </aside>
 
+    <main class="main-content">
     <!-- SEZIONE DASHBOARD -->
     <div class="container" id="dashboardSection">
         <!-- Status Bar con controlli Tracking -->
-        <div style="background: #242424; border-radius: 20px; padding: 15px 20px; margin-bottom: 20px; border: 1px solid #3a3a3a;">
+        <div style="background: #211C17; border-radius: 10px; padding: 15px 20px; margin-bottom: 20px; border: 1px solid #322B24;">
             <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
                 <!-- Stato a sinistra -->
                 <div class="status-bar" style="flex-shrink: 0;">
@@ -292,7 +213,7 @@
                     <select id="activityTypeSelect" style="padding: 8px 12px; min-width: 150px;">
                         <option value="">Tipo attività...</option>
                     </select>
-                    <button class="btn btn-success" id="trackingBtn" onclick="toggleTracking()" style="margin: 0; padding: 8px 20px; width: auto;">Avvia Tracking</button>
+                    <button class="btn btn-success" id="trackingBtn" data-action="toggleTracking" style="margin: 0; padding: 8px 20px; width: auto;">Avvia Tracking</button>
                 </div>
             </div>
         </div>
@@ -301,10 +222,10 @@
         <div class="card" style="margin-bottom: 20px;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
                 <h2 style="margin: 0;">Progetti</h2>
-                <button class="btn btn-success" onclick="openCreateProjectModal()" style="width: auto; padding: 10px 20px; margin: 0;">+ Crea Nuovo Progetto</button>
+                <button class="btn btn-success" data-action="openCreateProjectModal" style="width: auto; padding: 10px 20px; margin: 0;">+ Crea Nuovo Progetto</button>
             </div>
             <div class="project-list" id="projectList">
-                <p style="color: #6b7280;">Caricamento progetti...</p>
+                <p style="color: #9C9086;">Caricamento progetti...</p>
             </div>
         </div>
 
@@ -313,20 +234,20 @@
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
                 <h2 style="margin: 0;">Timeline Progetti</h2>
                 <div style="display: flex; gap: 10px;">
-                    <button class="btn" style="width: auto; padding: 10px 20px; margin: 0;" onclick="createNewSession()">+ Nuova Sessione</button>
+                    <button class="btn" style="width: auto; padding: 10px 20px; margin: 0;" data-action="createNewSession">+ Nuova Sessione</button>
                 </div>
             </div>
             <div class="timeline-filters">
-                <label style="color: #ffffff;">Da:</label>
+                <label style="color: #E4DACB;">Da:</label>
                 <input type="date" id="timelineStartDate">
-                <label style="color: #ffffff;">A:</label>
+                <label style="color: #E4DACB;">A:</label>
                 <input type="date" id="timelineEndDate">
-                <button class="btn" style="width: auto; padding: 10px 20px; margin: 0;" onclick="loadTimeline()">Carica Timeline</button>
-                <button class="btn" style="width: auto; padding: 20px 20px; margin: 0;" onclick="setToday()">Oggi</button>
-                <button class="btn" style="width: auto; padding: 10px 20px; margin: 0;" onclick="setThisWeek()">Questa Settimana</button>
+                <button class="btn" style="width: auto; padding: 10px 20px; margin: 0;" data-action="loadTimeline">Carica Timeline</button>
+                <button class="btn" style="width: auto; padding: 20px 20px; margin: 0;" data-action="setToday">Oggi</button>
+                <button class="btn" style="width: auto; padding: 10px 20px; margin: 0;" data-action="setThisWeek">Questa Settimana</button>
             </div>
             <div id="timelineContent">
-                <p style="color: #6b7280;">Seleziona un periodo per visualizzare la timeline</p>
+                <p style="color: #9C9086;">Seleziona un periodo per visualizzare la timeline</p>
             </div>
         </div>
     </div>
@@ -334,15 +255,15 @@
     <!-- SEZIONE ARCHIVIO (nascosta di default) -->
     <div class="container" id="archiveSection" style="display: none;">
         <h1>Archivio Progetti</h1>
-        <p class="subtitle" style="color: #999999; margin-bottom: 20px;">Progetti chiusi e archiviati</p>
+        <p class="subtitle" style="color: #9C9086; margin-bottom: 20px;">Progetti chiusi e archiviati</p>
 
         <div class="card" style="margin-bottom: 20px;">
             <div style="display: flex; justify-content: space-between; align-items: center;">
                 <div>
                     <h2 style="margin: 0;">Importa Progetto</h2>
-                    <p style="color: #999999; margin: 5px 0 0 0; font-size: 0.9em;">Ripristina un progetto da un file JSON esportato precedentemente</p>
+                    <p style="color: #9C9086; margin: 5px 0 0 0; font-size: 0.9em;">Ripristina un progetto da un file JSON esportato precedentemente</p>
                 </div>
-                <button class="btn btn-success" style="width: auto; padding: 12px 24px; margin: 0;" onclick="importProjectFromJSON()">
+                <button class="btn btn-success" style="width: auto; padding: 12px 24px; margin: 0;" data-action="importProjectFromJSON">
                     Importa da JSON
                 </button>
             </div>
@@ -351,7 +272,7 @@
         <div class="card">
             <h2>Progetti Archiviati</h2>
             <div id="archivedProjectsList">
-                <p style="color: #6b7280;">Caricamento progetti archiviati...</p>
+                <p style="color: #9C9086;">Caricamento progetti archiviati...</p>
             </div>
         </div>
     </div>
@@ -359,74 +280,395 @@
     <!-- SEZIONE IMPOSTAZIONI (nascosta di default) -->
     <div class="container" id="settingsSection" style="display: none;">
         <h1>Impostazioni</h1>
-        <p class="subtitle" style="color: #999999; margin-bottom: 20px;">Configura PrendiTempo</p>
+        <p class="subtitle" style="color: #9C9086; margin-bottom: 20px;">Configura PrendiTempo</p>
 
         <!-- Tipi di Attività -->
         <div class="card" style="margin-bottom: 20px;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
                 <h2 style="margin: 0;">Tipi di Attività</h2>
-                <button class="btn btn-success" style="width: auto; padding: 10px 20px; margin: 0;" onclick="openActivityTypeModal()">+ Nuovo Tipo</button>
+                <button class="btn btn-success" style="width: auto; padding: 10px 20px; margin: 0;" data-action="openActivityTypeModal">+ Nuovo Tipo</button>
             </div>
-            <p style="color: #999999; margin-bottom: 15px;">Trascina per riordinare i tipi di attività. Ogni tipo può avere un colore e pattern diverso.</p>
+            <p style="color: #9C9086; margin-bottom: 15px;">Trascina per riordinare i tipi di attività. Ogni tipo può avere un colore e pattern diverso.</p>
 
             <div id="activityTypesList">
-                <p style="color: #6b7280;">Caricamento tipi attività...</p>
+                <p style="color: #9C9086;">Caricamento tipi attività...</p>
+            </div>
+        </div>
+
+        <!-- Orario di Lavoro -->
+        <div class="card" style="margin-bottom: 20px;">
+            <h2>Orario di Lavoro</h2>
+            <p style="color: #9C9086; margin-bottom: 20px;">Il tuo orario standard giornaliero. Usato per calcolare le ore contrattuali e gli straordinari nel Resoconto Mensile.</p>
+
+            <div style="display: flex; gap: 24px; align-items: flex-end; flex-wrap: wrap; margin-bottom: 18px;">
+                <div>
+                    <div style="color: #9C9086; font-size: 0.85em; margin-bottom: 6px;">Inizio turno</div>
+                    <input type="time" id="workStartTime" value="08:00"
+                        style="background:#262019; border:1px solid #322B24; border-radius:8px; color:#E4DACB; padding:8px 12px; font-size:1em; width:120px;"
+                        data-change-actions="updateComputedHours">
+                </div>
+                <div>
+                    <div style="color: #9C9086; font-size: 0.85em; margin-bottom: 6px;">Fine turno</div>
+                    <input type="time" id="workEndTime" value="17:00"
+                        style="background:#262019; border:1px solid #322B24; border-radius:8px; color:#E4DACB; padding:8px 12px; font-size:1em; width:120px;"
+                        data-change-actions="updateComputedHours">
+                </div>
+            </div>
+
+            <div style="margin-bottom: 14px;">
+                <label style="display:flex; align-items:center; gap:10px; cursor:pointer; user-select:none;">
+                    <input type="checkbox" id="lunchBreakEnabled" data-change-actions="toggleLunchBreak updateComputedHours"
+                        style="width:16px; height:16px; cursor:pointer; accent-color:#C99A54;">
+                    <span style="color:#ccc;">Pausa pranzo</span>
+                </label>
+            </div>
+
+            <div id="lunchBreakFields" style="display:none; margin-left:26px; margin-bottom:18px;">
+                <div style="display:flex; gap:24px; align-items:flex-end; flex-wrap:wrap;">
+                    <div>
+                        <div style="color: #9C9086; font-size: 0.85em; margin-bottom: 6px;">Dalle</div>
+                        <input type="time" id="lunchBreakStart" value="13:00"
+                            style="background:#262019; border:1px solid #322B24; border-radius:8px; color:#E4DACB; padding:8px 12px; font-size:1em; width:120px;"
+                            data-change-actions="updateComputedHours">
+                    </div>
+                    <div>
+                        <div style="color: #9C9086; font-size: 0.85em; margin-bottom: 6px;">Alle</div>
+                        <input type="time" id="lunchBreakEnd" value="14:00"
+                            style="background:#262019; border:1px solid #322B24; border-radius:8px; color:#E4DACB; padding:8px 12px; font-size:1em; width:120px;"
+                            data-change-actions="updateComputedHours">
+                    </div>
+                </div>
+            </div>
+
+            <div style="background:#1C1815; border-radius:10px; padding:10px 18px; display:inline-block;">
+                <span style="color:#9C9086; font-size:0.85em;">Ore lavorative: </span>
+                <span id="computedContractedHours" style="color:#C99A54; font-weight:700; font-size:1.1em;">8.00</span>
+                <span style="color:#9C9086; font-size:0.85em;"> h/giorno</span>
+            </div>
+            <div style="display:flex; justify-content:flex-end; margin-top:16px;">
+                <button class="btn btn-success" style="width:auto; padding:9px 22px; margin:0;" data-action="saveWorkSchedule">Salva</button>
+            </div>
+
+            <hr style="border: none; border-top: 1px solid #322B24; margin: 24px 0;">
+
+            <div style="font-weight:600; color:#E4DACB; margin-bottom:6px;">Giorni lavorativi</div>
+            <p style="color: #9C9086; margin-bottom: 15px;">Seleziona i giorni che conti come lavorativi per il calcolo degli straordinari.</p>
+
+            <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 15px;" id="workingDaysCheckboxes">
+                <label style="display: flex; flex-direction: column; align-items: center; gap: 6px; cursor: pointer;">
+                    <input type="checkbox" id="wd0" data-bit="0" data-change-actions="onWorkingDayChange" style="width:18px;height:18px;accent-color:#C99A54;">
+                    <span style="font-size:0.85em; color:#9C9086;">Dom</span>
+                </label>
+                <label style="display: flex; flex-direction: column; align-items: center; gap: 6px; cursor: pointer;">
+                    <input type="checkbox" id="wd1" data-bit="1" data-change-actions="onWorkingDayChange" style="width:18px;height:18px;accent-color:#C99A54;" checked>
+                    <span style="font-size:0.85em; color:#E4DACB;">Lun</span>
+                </label>
+                <label style="display: flex; flex-direction: column; align-items: center; gap: 6px; cursor: pointer;">
+                    <input type="checkbox" id="wd2" data-bit="2" data-change-actions="onWorkingDayChange" style="width:18px;height:18px;accent-color:#C99A54;" checked>
+                    <span style="font-size:0.85em; color:#E4DACB;">Mar</span>
+                </label>
+                <label style="display: flex; flex-direction: column; align-items: center; gap: 6px; cursor: pointer;">
+                    <input type="checkbox" id="wd3" data-bit="3" data-change-actions="onWorkingDayChange" style="width:18px;height:18px;accent-color:#C99A54;" checked>
+                    <span style="font-size:0.85em; color:#E4DACB;">Mer</span>
+                </label>
+                <label style="display: flex; flex-direction: column; align-items: center; gap: 6px; cursor: pointer;">
+                    <input type="checkbox" id="wd4" data-bit="4" data-change-actions="onWorkingDayChange" style="width:18px;height:18px;accent-color:#C99A54;" checked>
+                    <span style="font-size:0.85em; color:#E4DACB;">Gio</span>
+                </label>
+                <label style="display: flex; flex-direction: column; align-items: center; gap: 6px; cursor: pointer;">
+                    <input type="checkbox" id="wd5" data-bit="5" data-change-actions="onWorkingDayChange" style="width:18px;height:18px;accent-color:#C99A54;" checked>
+                    <span style="font-size:0.85em; color:#E4DACB;">Ven</span>
+                </label>
+                <label style="display: flex; flex-direction: column; align-items: center; gap: 6px; cursor: pointer;">
+                    <input type="checkbox" id="wd6" data-bit="6" data-change-actions="onWorkingDayChange" style="width:18px;height:18px;accent-color:#C99A54;">
+                    <span style="font-size:0.85em; color:#9C9086;">Sab</span>
+                </label>
+            </div>
+            <div style="display:flex; justify-content:flex-end; margin-top:16px;">
+                <button class="btn btn-success" style="width:auto; padding:9px 22px; margin:0;" data-action="saveWorkingDays">Salva</button>
+            </div>
+
+            <hr style="border: none; border-top: 1px solid #322B24; margin: 24px 0;">
+
+            <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:14px;">
+                <span style="color:#9C9086; font-size:0.85em;">Nome categoria personalizzabile <span style="color:#C99A54;">(es. "Trasferta")</span>:</span>
+                <input type="text" id="trasfertaLabelInput" maxlength="40" placeholder="Trasferta" style="width: 160px; padding: 6px 10px;">
+            </div>
+            <div style="display:flex; justify-content:flex-end;">
+                <button class="btn btn-success" style="width:auto; padding:9px 22px; margin:0;" data-action="saveTrasfertaLabel">Salva</button>
+            </div>
+        </div>
+
+        <!-- Festività -->
+        <div class="card" style="margin-bottom: 20px;">
+            <h2>Festività</h2>
+            <p style="color: #9C9086; margin-bottom: 15px;">Genera automaticamente le festività italiane per un anno, poi modificale o aggiungine di personalizzate.</p>
+
+            <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 15px;">
+                <input type="number" id="holidaysYear" value="2026" min="2020" max="2099" style="width: 90px; padding: 8px 12px;" data-change-actions="loadYearHolidays">
+                <button class="btn btn-success" style="width: auto; padding: 10px 20px; margin: 0;" data-action="populateItalianHolidays">Genera Festività Italiane</button>
+            </div>
+
+            <div id="holidaysYearList" style="margin-bottom: 15px;">
+                <p style="color: #9C9086;">Caricamento…</p>
+            </div>
+
+            <hr style="border: none; border-top: 1px solid #322B24; margin: 20px 0;">
+
+            <div style="color:#9C9086; font-size:0.85em; margin-bottom:10px;">Festività personalizzate ricorrenti:</div>
+            <div id="recurringHolidaysList" style="margin-bottom: 12px;">
+                <p style="color: #6B6259; font-size: 0.85em;">Nessuna</p>
+            </div>
+            <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 6px;">
+                <select id="recurringHolidayMonth" style="padding: 6px 10px; width: auto;">
+                    <option value="1">Gennaio</option>
+                    <option value="2">Febbraio</option>
+                    <option value="3">Marzo</option>
+                    <option value="4">Aprile</option>
+                    <option value="5">Maggio</option>
+                    <option value="6">Giugno</option>
+                    <option value="7">Luglio</option>
+                    <option value="8">Agosto</option>
+                    <option value="9">Settembre</option>
+                    <option value="10">Ottobre</option>
+                    <option value="11">Novembre</option>
+                    <option value="12">Dicembre</option>
+                </select>
+                <input type="number" id="recurringHolidayDay" min="1" max="31" placeholder="Giorno" style="width: 80px; padding: 6px 10px;">
+                <input type="text" id="recurringHolidayLabel" maxlength="60" placeholder="Nome (opzionale)" style="width: 160px; padding: 6px 10px;">
+                <button class="btn" style="width: auto; padding: 8px 16px; margin: 0; background: #322B24;" data-action="addRecurringHoliday">Aggiungi</button>
+            </div>
+            <p style="color: #6B6259; font-size: 0.78em; margin-bottom: 20px;">Viene aggiunta automaticamente ogni anno in questo giorno, quando generi le festività italiane per quell'anno.</p>
+
+            <hr style="border: none; border-top: 1px solid #322B24; margin: 20px 0;">
+
+            <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:6px;">
+                <span style="color:#9C9086; font-size:0.85em;">Festa patronale (opzionale):</span>
+                <select id="patronSaintMonth" style="padding: 6px 10px; width: auto;">
+                    <option value="1">Gennaio</option>
+                    <option value="2">Febbraio</option>
+                    <option value="3">Marzo</option>
+                    <option value="4">Aprile</option>
+                    <option value="5">Maggio</option>
+                    <option value="6">Giugno</option>
+                    <option value="7">Luglio</option>
+                    <option value="8">Agosto</option>
+                    <option value="9">Settembre</option>
+                    <option value="10">Ottobre</option>
+                    <option value="11">Novembre</option>
+                    <option value="12">Dicembre</option>
+                </select>
+                <input type="number" id="patronSaintDay" min="1" max="31" placeholder="Giorno" style="width: 80px; padding: 6px 10px;">
+            </div>
+            <p style="color: #6B6259; font-size: 0.78em; margin-bottom: 14px;">Viene aggiunta automaticamente ogni anno in questo giorno, quando generi le festività italiane per quell'anno.</p>
+            <div style="display:flex; justify-content:flex-end;">
+                <button class="btn btn-success" style="width:auto; padding:9px 22px; margin:0;" data-action="savePatronSaintDate">Salva</button>
             </div>
         </div>
 
         <!-- Tempo di Inattività -->
         <div class="card" style="margin-bottom: 20px;">
             <h2>Tempo di Inattività</h2>
-            <p style="color: #999999; margin-bottom: 15px;">Dopo quanti minuti di inattività il sistema deve chiedere dove attribuire il tempo</p>
+            <p style="color: #9C9086; margin-bottom: 15px;">Dopo quanti minuti di inattività il sistema deve chiedere dove attribuire il tempo</p>
 
             <div style="display: flex; gap: 10px; align-items: center;">
                 <input type="number" id="idleThresholdSetting" placeholder="5" value="5" min="1" style="width: 100px;">
-                <span style="color: #ffffff;">minuti</span>
-                <button class="btn btn-success" style="width: auto; padding: 10px 20px; margin: 0;" onclick="saveIdleThreshold()">Salva</button>
+                <span style="color: #E4DACB;">minuti</span>
+            </div>
+            <div style="display:flex; justify-content:flex-end; margin-top:16px;">
+                <button class="btn btn-success" style="width:auto; padding:9px 22px; margin:0;" data-action="saveIdleThreshold">Salva</button>
             </div>
         </div>
 
         <!-- Avvio Automatico -->
         <div class="card" style="margin-bottom: 20px;">
             <h2>Avvio Automatico</h2>
-            <p style="color: #999999; margin-bottom: 15px;">Avvia PrendiTempo automaticamente all'accensione del PC</p>
+            <p style="color: #9C9086; margin-bottom: 15px;">Avvia PrendiTempo automaticamente all'accensione del PC</p>
 
             <div style="display: flex; align-items: center; gap: 15px;">
                 <label class="toggle-switch">
-                    <input type="checkbox" id="autostartToggle" onchange="toggleAutostart()">
+                    <input type="checkbox" id="autostartToggle" data-change-actions="toggleAutostart">
                     <span class="toggle-slider"></span>
                 </label>
-                <span id="autostartStatus" style="color: #999999;">Caricamento...</span>
+                <span id="autostartStatus" style="color: #9C9086;">Caricamento...</span>
             </div>
         </div>
 
         <!-- Export/Import -->
         <div class="card" style="margin-bottom: 20px;">
             <h2>Backup Dati</h2>
-            <p style="color: #999999; margin-bottom: 15px;">Esporta o importa i tuoi dati</p>
+            <p style="color: #9C9086; margin-bottom: 15px;">Esporta o importa i tuoi dati</p>
 
             <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-                <button class="btn" style="background: #ffffff; color: #1a1a1a;" onclick="exportData()">Esporta Dati</button>
-                <input type="file" id="importFile" accept=".json" style="display: none;" onchange="importDataFromFile(event)">
-                <button class="btn btn-success" onclick="document.getElementById('importFile').click()">Importa Dati</button>
+                <button class="btn" data-action="exportData">Esporta Dati</button>
+                <input type="file" id="importFile" accept=".json" style="display: none;" data-change-actions="importDataFromFile">
+                <button class="btn btn-success" data-action="openImportFilePicker">Importa Dati</button>
             </div>
         </div>
 
         <!-- Importa Note Legacy -->
         <div class="card">
             <h2>Importa Note Legacy</h2>
-            <p style="color: #999999; margin-bottom: 15px;">Se hai delle note create con la versione precedente, puoi importarle nel nuovo sistema di note markdown per progetto</p>
+            <p style="color: #9C9086; margin-bottom: 15px;">Importa le note create con versioni precedenti. Verranno poi copiate automaticamente nella lavagna del progetto, mantenendo il testo originale.</p>
 
-            <button class="btn" style="background: #f59e0b;" onclick="migrateLegacyNotes()">Importa Note Vecchie</button>
+            <button class="btn" data-action="migrateLegacyNotes">Importa Note Vecchie</button>
         </div>
     </div>
+
+    <!-- SEZIONE RESOCONTO MENSILE -->
+    <div class="container" id="resocontoSection" style="display: none;">
+        <h1>Resoconto Mensile</h1>
+        <p class="subtitle" style="color: #9C9086; margin-bottom: 20px;">Ore lavorate nel mese con calcolo straordinari</p>
+
+        <!-- Selezione mese -->
+        <div class="card" style="margin-bottom: 20px;">
+            <div style="display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
+                <div style="display: flex; gap: 10px; align-items: center;">
+                    <select id="resocontoMonth" style="padding: 8px 12px; width: auto;">
+                        <option value="1">Gennaio</option>
+                        <option value="2">Febbraio</option>
+                        <option value="3">Marzo</option>
+                        <option value="4">Aprile</option>
+                        <option value="5">Maggio</option>
+                        <option value="6">Giugno</option>
+                        <option value="7">Luglio</option>
+                        <option value="8">Agosto</option>
+                        <option value="9">Settembre</option>
+                        <option value="10">Ottobre</option>
+                        <option value="11">Novembre</option>
+                        <option value="12">Dicembre</option>
+                    </select>
+                    <input type="number" id="resocontoYear" value="2026" min="2020" max="2099" style="width: 90px; padding: 8px 12px;">
+                </div>
+                <button class="btn btn-success" style="width: auto; padding: 10px 20px; margin: 0;" data-action="loadMonthlyReport">Carica Resoconto</button>
+                <button class="btn" style="width: auto; padding: 10px 20px; margin: 0; background: #322B24;" data-action="exportMonthlyReportCSV" id="btnExportCSV" disabled>Esporta CSV</button>
+            </div>
+        </div>
+
+        <!-- Riepilogo Ore -->
+        <div id="resocontoSummary" style="display: none; margin-bottom: 28px;">
+            <h2 id="resocontoTitle" style="font-family: var(--font-display); font-weight: 450; font-size: 1.8em; margin-bottom: 18px;">—</h2>
+            <div style="display: grid; grid-template-columns: repeat(9, minmax(0, 1fr)); border-top: 1px solid #322B24; border-bottom: 1px solid #322B24;">
+                <div style="padding: 12px 14px 12px 0;">
+                    <div style="font-size: 12px; color: #857A6E; margin-bottom: 6px;">Ore lavorate</div>
+                    <div style="font-size: 1.3em; font-weight: 600; color: #C99A54;" id="summaryTracked">—</div>
+                    <div style="color: #6B6259; font-size: 0.72em; margin-top: 3px;" id="summaryTrackedSub"></div>
+                </div>
+                <div style="padding: 12px 14px;">
+                    <div style="font-size: 12px; color: #857A6E; margin-bottom: 6px;">Ore contrattuali</div>
+                    <div style="font-size: 1.3em; font-weight: 600; color: #E4DACB;" id="summaryContracted">—</div>
+                </div>
+                <div style="padding: 12px 14px;">
+                    <div style="font-size: 12px; color: #857A6E; margin-bottom: 6px;" id="summaryOvertimeLabel">Straordinari</div>
+                    <div style="font-size: 1.3em; font-weight: 600;" id="summaryOvertime">—</div>
+                </div>
+                <div style="padding: 12px 14px;">
+                    <div style="font-size: 12px; color: #857A6E; margin-bottom: 6px;">Giorni lavorativi</div>
+                    <div style="font-size: 1.3em; font-weight: 600; color: #E4DACB;" id="summaryWorkingDays">—</div>
+                </div>
+                <div style="padding: 12px 14px;">
+                    <div style="font-size: 12px; color: #857A6E; margin-bottom: 6px;">Ferie godute</div>
+                    <div style="font-size: 1.05em; font-weight: 600; color: #6C89A8;" id="summaryVacation">—</div>
+                </div>
+                <div style="padding: 12px 14px;">
+                    <div style="font-size: 12px; color: #857A6E; margin-bottom: 6px;">Permessi goduti</div>
+                    <div style="font-size: 1.05em; font-weight: 600; color: #7A9B8E;" id="summaryPermission">—</div>
+                </div>
+                <div style="padding: 12px 14px;">
+                    <div style="font-size: 12px; color: #857A6E; margin-bottom: 6px;">Malattia</div>
+                    <div style="font-size: 1.05em; font-weight: 600; color: #93829A;" id="summaryMalattia">—</div>
+                </div>
+                <div style="padding: 12px 14px;">
+                    <div style="font-size: 12px; color: #857A6E; margin-bottom: 6px;" id="summaryTrasfertaLabel">Trasferta</div>
+                    <div style="font-size: 1.05em; font-weight: 600; color: #C99A54;" id="summaryTrasferta">—</div>
+                </div>
+                <div style="padding: 12px 0 12px 14px;">
+                    <div style="font-size: 12px; color: #857A6E; margin-bottom: 6px;">Festività</div>
+                    <div style="font-size: 1.05em; font-weight: 600; color: #B1583F;" id="summaryHoliday">—</div>
+                </div>
+            </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 20px;" id="resocontoDetails">
+            <!-- Breakdown giornaliero -->
+            <div class="card">
+                <h2 style="margin-bottom: 15px;">Dettaglio Giornaliero</h2>
+                <div id="resocontoDaysList" style="max-height: 500px; overflow-y: auto;">
+                    <p style="color: #9C9086;">Seleziona un mese e clicca "Carica Resoconto"</p>
+                </div>
+            </div>
+
+            <!-- Breakdown per progetto -->
+            <div class="card">
+                <h2 style="margin-bottom: 15px;">Per Progetto</h2>
+                <div id="resocontoProjectsList">
+                    <p style="color: #9C9086;">—</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    </main>
+</div>
+
+    <!-- Popover Evento Giornaliero -->
+    <div id="dayEventPopover" style="display:none; position:fixed; z-index:1000; background:#211C17; border:1px solid #322B24; border-radius:10px; padding:20px; min-width:240px; max-width:calc(100vw - 24px); max-height:calc(100vh - 24px); overflow-y:auto; box-shadow:0 8px 32px rgba(0,0,0,0.5);">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+            <span style="font-weight:600; color:#E4DACB;" id="dayEventPopoverTitle">—</span>
+            <button data-action="closeDayEventPopover" style="background:none;border:none;color:#9C9086;font-size:1.4em;cursor:pointer;line-height:1;">×</button>
+        </div>
+        <input type="hidden" id="dayEventDate">
+
+        <div style="display:flex; flex-direction:column; gap:8px; margin-bottom:14px;">
+            <label class="radio-option" id="eventOptNone" data-action="selectEventType" data-action-arg="none">
+                <input type="radio" name="dayEventType" value="none">
+                <span class="radio-circle"></span>
+                <span>Nessun evento</span>
+            </label>
+            <label class="radio-option" id="eventOptHoliday" data-action="selectEventType" data-action-arg="holiday">
+                <input type="radio" name="dayEventType" value="holiday">
+                <span class="radio-circle"></span>
+                <span><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#B1583F;margin-right:8px;"></span>Festa / Festività</span>
+            </label>
+            <label class="radio-option" id="eventOptVacation" data-action="selectEventType" data-action-arg="vacation">
+                <input type="radio" name="dayEventType" value="vacation">
+                <span class="radio-circle"></span>
+                <span><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#6C89A8;margin-right:8px;"></span>Ferie</span>
+            </label>
+            <label class="radio-option" id="eventOptMalattia" data-action="selectEventType" data-action-arg="malattia">
+                <input type="radio" name="dayEventType" value="malattia">
+                <span class="radio-circle"></span>
+                <span><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#93829A;margin-right:8px;"></span>Malattia</span>
+            </label>
+            <label class="radio-option" id="eventOptPermesso" data-action="selectEventType" data-action-arg="permesso">
+                <input type="radio" name="dayEventType" value="permesso">
+                <span class="radio-circle"></span>
+                <span><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#7A9B8E;margin-right:8px;"></span>Permesso</span>
+            </label>
+            <label class="radio-option" id="eventOptTrasferta" data-action="selectEventType" data-action-arg="trasferta">
+                <input type="radio" name="dayEventType" value="trasferta">
+                <span class="radio-circle"></span>
+                <span><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#C99A54;margin-right:8px;"></span><span id="trasfertaLabelPopover">Trasferta</span> <span style="color:#6B6259; font-size:0.78em;">(personalizzabile)</span></span>
+            </label>
+        </div>
+
+        <div id="permessoHoursRow" style="display:none; margin-bottom:14px;">
+            <label style="color:#9C9086; font-size:0.85em; display:block; margin-bottom:6px;">Ore di permesso</label>
+            <div style="display:flex; align-items:center; gap:8px;">
+                <input type="number" id="permessoHoursInput" min="0.5" max="24" step="0.5" value="2" style="width:80px; padding:8px 10px;">
+                <span style="color:#9C9086; font-size:0.9em;">ore</span>
+            </div>
+        </div>
+
+        <button class="btn btn-success" style="width:100%; margin:0;" data-action="saveDayEvent">Salva</button>
+    </div>
+    <div id="dayEventOverlay" style="display:none; position:fixed; inset:0; z-index:999;" data-action="closeDayEventPopover"></div>
 
     <!-- Modal Tipo Attività -->
     <div class="modal" id="activityTypeModal">
         <div class="modal-content" style="max-width: 700px;">
             <div class="modal-header">
                 <h2 id="activityTypeModalTitle">Nuovo Tipo di Attività</h2>
-                <p style="color: #6b7280;">Configura un tipo di attività personalizzato</p>
+                <p style="color: #9C9086;">Configura un tipo di attività personalizzato</p>
             </div>
             <div class="modal-body">
                 <input type="hidden" id="activityTypeId" value="">
@@ -436,41 +678,41 @@
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px;">
                     <!-- Colonna Sinistra - Configurazione -->
                     <div>
-                        <label style="color: #ffffff; font-weight: 600; margin-bottom: 10px; display: block;">
-                            Nome <span style="color: #ef4444;">*</span>
+                        <label style="color: #E4DACB; font-weight: 600; margin-bottom: 10px; display: block;">
+                            Nome <span style="color: #B1583F;">*</span>
                         </label>
                         <input type="text" id="activityTypeName" placeholder="es. SVILUPPO, TESTING">
 
-                        <label style="color: #ffffff; font-weight: 600; margin-bottom: 10px; margin-top: 20px; display: block;">
+                        <label style="color: #E4DACB; font-weight: 600; margin-bottom: 10px; margin-top: 20px; display: block;">
                             Tonalità Colore
                         </label>
-                        <p style="color: #999999; font-size: 0.85em; margin-bottom: 10px;">
+                        <p style="color: #9C9086; font-size: 0.85em; margin-bottom: 10px;">
                             Scegli quanto chiaro o scuro deve essere rispetto al colore base
                         </p>
                         <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 20px;">
-                            <span style="font-size: 0.9em; color: #999999;">Scuro</span>
+                            <span style="font-size: 0.9em; color: #9C9086;">Scuro</span>
                             <input type="range" id="activityTypeColor" min="-1" max="1" step="0.1" value="0">
-                            <span style="font-size: 0.9em; color: #999999;">Chiaro</span>
+                            <span style="font-size: 0.9em; color: #9C9086;">Chiaro</span>
                         </div>
                         <div style="text-align: center; margin-bottom: 20px;">
-                            <span style="background: #1a1a1a; padding: 5px 15px; border-radius: 24px; font-weight: 600; color: #ffffff; border: 1px solid #3a3a3a;">
+                            <span style="background: #1C1815; padding: 5px 15px; border-radius: 10px; font-weight: 600; color: #E4DACB; border: 1px solid #322B24;">
                                 Valore: <span id="colorValue">0.0</span>
                             </span>
                         </div>
 
-                        <label style="color: #ffffff; font-weight: 600; margin-bottom: 10px; display: block;">
+                        <label style="color: #E4DACB; font-weight: 600; margin-bottom: 10px; display: block;">
                             Pattern Visivo
                         </label>
                         <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 15px;">
-                            <div class="pattern-option selected" data-pattern="solid" onclick="selectPattern('solid')">
+                            <div class="pattern-option selected" data-pattern="solid" data-action="selectPattern" data-action-arg="solid">
                                 <div class="pattern-preview pattern-solid"></div>
                                 <span>Solido</span>
                             </div>
-                            <div class="pattern-option" data-pattern="stripes" onclick="selectPattern('stripes')">
+                            <div class="pattern-option" data-pattern="stripes" data-action="selectPattern" data-action-arg="stripes">
                                 <div class="pattern-preview pattern-stripes"></div>
                                 <span>Strisce</span>
                             </div>
-                            <div class="pattern-option" data-pattern="dots" onclick="selectPattern('dots')">
+                            <div class="pattern-option" data-pattern="dots" data-action="selectPattern" data-action-arg="dots">
                                 <div class="pattern-preview pattern-dots"></div>
                                 <span>Puntini</span>
                             </div>
@@ -479,23 +721,23 @@
 
                     <!-- Colonna Destra - Anteprima Live -->
                     <div>
-                        <label style="color: #ffffff; font-weight: 600; margin-bottom: 10px; display: block;">
+                        <label style="color: #E4DACB; font-weight: 600; margin-bottom: 10px; display: block;">
                             Anteprima
                         </label>
-                        <div style="background: #1a1a1a; border: 1px solid #3a3a3a; border-radius: 16px; padding: 20px;">
-                            <p style="color: #999999; font-size: 0.9em; margin-bottom: 15px; text-align: center;">
+                        <div style="background: #1C1815; border: 1px solid #322B24; border-radius: 10px; padding: 20px;">
+                            <p style="color: #9C9086; font-size: 0.9em; margin-bottom: 15px; text-align: center;">
                                 Come apparirà nella timeline
                             </p>
-                            <div style="background: #242424; border-radius: 16px; padding: 15px; border: 1px solid #3a3a3a;">
-                                <div style="font-size: 0.85em; color: #999999; margin-bottom: 10px; font-weight: 600;">
+                            <div style="background: #211C17; border-radius: 10px; padding: 15px; border: 1px solid #322B24;">
+                                <div style="font-size: 0.85em; color: #9C9086; margin-bottom: 10px; font-weight: 600;">
                                     Timeline Preview
                                 </div>
-                                <div style="height: 40px; background: #000000; border-radius: 8px; overflow: hidden; position: relative;">
-                                    <div id="activityPreview" style="height: 100%; width: 60%; position: absolute; left: 20%; background: #ffffff;"></div>
+                                <div style="height: 40px; background: #1C1815; border-radius: 8px; overflow: hidden; position: relative;">
+                                    <div id="activityPreview" style="height: 100%; width: 60%; position: absolute; left: 20%; background: #E4DACB;"></div>
                                 </div>
                                 <div style="margin-top: 15px; text-align: center;">
-                                    <div style="display: inline-block; padding: 8px 16px; border-radius: 24px; background: #1a1a1a; border: 1px solid #3a3a3a;">
-                                        <span style="font-weight: 600; color: #ffffff;" id="previewName">Nome Attività</span>
+                                    <div style="display: inline-block; padding: 8px 16px; border-radius: 10px; background: #1C1815; border: 1px solid #322B24;">
+                                        <span style="font-weight: 600; color: #E4DACB;" id="previewName">Nome Attività</span>
                                     </div>
                                 </div>
                             </div>
@@ -504,8 +746,8 @@
                 </div>
             </div>
             <div class="modal-buttons">
-                <button class="btn" style="background: #6b7280;" onclick="closeActivityTypeModal()">Annulla</button>
-                <button class="btn btn-success" onclick="saveActivityType()">Salva</button>
+                <button class="btn" style="background: #443A2E;" data-action="closeActivityTypeModal">Annulla</button>
+                <button class="btn btn-success" data-action="saveActivityType">Salva</button>
             </div>
         </div>
     </div>
@@ -519,17 +761,17 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h2>Nuovo Progetto</h2>
-                <p style="color: #6b7280;">Inserisci i dettagli del progetto</p>
+                <p style="color: #9C9086;">Inserisci i dettagli del progetto</p>
             </div>
             <div class="modal-body">
-                <label style="color: #ffffff; font-weight: 600; margin-bottom: 10px; display: block;">Nome Progetto:</label>
+                <label style="color: #E4DACB; font-weight: 600; margin-bottom: 10px; display: block;">Nome Progetto:</label>
                 <input type="text" id="modalProjectName" placeholder="Nome progetto">
-                <label style="color: #ffffff; font-weight: 600; margin-bottom: 10px; margin-top: 15px; display: block;">Descrizione (opzionale):</label>
+                <label style="color: #E4DACB; font-weight: 600; margin-bottom: 10px; margin-top: 15px; display: block;">Descrizione (opzionale):</label>
                 <textarea id="modalProjectDesc" placeholder="Descrizione del progetto..."></textarea>
             </div>
             <div class="modal-buttons">
-                <button class="btn" style="background: #6b7280;" onclick="closeCreateProjectModal()">Annulla</button>
-                <button class="btn btn-success" onclick="createProject()">Crea Progetto</button>
+                <button class="btn" style="background: #443A2E;" data-action="closeCreateProjectModal">Annulla</button>
+                <button class="btn btn-success" data-action="createProject">Crea Progetto</button>
             </div>
         </div>
     </div>
@@ -538,37 +780,397 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h2>Modifica Progetto</h2>
-                <p style="color: #6b7280;">Modifica i dettagli del progetto</p>
+                <p style="color: #9C9086;">Modifica i dettagli del progetto</p>
             </div>
             <div class="modal-body">
                 <input type="hidden" id="editProjectId">
-                <label style="color: #ffffff; font-weight: 600; margin-bottom: 10px; display: block;">Nome Progetto:</label>
+                <label style="color: #E4DACB; font-weight: 600; margin-bottom: 10px; display: block;">Nome Progetto:</label>
                 <input type="text" id="editProjectName" placeholder="Nome progetto">
-                <label style="color: #ffffff; font-weight: 600; margin-bottom: 10px; margin-top: 15px; display: block;">Descrizione (opzionale):</label>
+                <label style="color: #E4DACB; font-weight: 600; margin-bottom: 10px; margin-top: 15px; display: block;">Descrizione (opzionale):</label>
                 <textarea id="editProjectDesc" placeholder="Descrizione del progetto..."></textarea>
             </div>
             <div class="modal-buttons">
-                <button class="btn" style="background: #f59e0b;" onclick="archiveProjectFromModal()">Chiudi Progetto</button>
-                <button class="btn" style="background: #6b7280;" onclick="closeEditProjectModal()">Annulla</button>
-                <button class="btn btn-success" onclick="updateProject()">Salva Modifiche</button>
+                <button class="btn" data-action="archiveProjectFromModal">Chiudi Progetto</button>
+                <button class="btn" style="background: #443A2E;" data-action="closeEditProjectModal">Annulla</button>
+                <button class="btn btn-success" data-action="updateProject">Salva Modifiche</button>
             </div>
         </div>
     </div>
 
-    <!-- Modal Nota Progetto con Editor Markdown -->
-    <div class="modal" id="projectNoteModal">
-        <div class="modal-content" style="max-width: 900px; height: 80vh;">
-            <div class="modal-header">
-                <h2>Note del Progetto</h2>
-                <p style="color: #6b7280;" id="projectNoteProjectName"></p>
+    <div class="modal" id="projectBoardModal">
+        <div class="modal-content board-modal-content">
+            <div class="board-header">
+                <div>
+                    <h2>Lavagna del progetto</h2>
+                    <p id="projectBoardProjectName"></p>
+                </div>
+                <div class="board-header-actions">
+                    <div class="board-quick-access" aria-label="Accesso rapido">
+                        <button type="button" data-board-command="save" title="Salva (Ctrl+S)" aria-label="Salva">✓</button>
+                        <button type="button" data-board-command="undo" title="Annulla (Ctrl+Z)" aria-label="Annulla">↶</button>
+                        <button type="button" data-board-command="redo" title="Ripristina (Ctrl+Y)" aria-label="Ripristina">↷</button>
+                    </div>
+                    <span id="boardSaveStatus" data-state="saved">Salvato</span>
+                    <button class="btn board-close-button" data-action="closeProjectBoard">Chiudi</button>
+                </div>
             </div>
-            <div class="modal-body" style="flex: 1; display: flex; flex-direction: column; overflow: hidden;">
-                <input type="hidden" id="projectNoteProjectId">
-                <textarea id="projectNoteEditor"></textarea>
-            </div>
-            <div class="modal-buttons">
-                <button class="btn" style="background: #6b7280;" onclick="closeProjectNoteModal()">Chiudi</button>
-                <button class="btn btn-success" onclick="saveProjectNote()">Salva Note</button>
+            <nav class="board-ribbon" aria-label="Comandi della lavagna">
+                <div class="board-ribbon-tabs" role="tablist" aria-label="Schede strumenti">
+                    <button type="button" role="tab" aria-selected="true" data-board-tab="home">Home</button>
+                    <button type="button" role="tab" aria-selected="false" data-board-tab="insert">Inserisci</button>
+                    <button type="button" role="tab" aria-selected="false" data-board-tab="draw">Disegno</button>
+                    <button type="button" role="tab" aria-selected="false" data-board-tab="view">Visualizza</button>
+                    <button type="button" role="tab" aria-selected="false" data-board-tab="export">Esporta</button>
+                    <button type="button" role="tab" aria-selected="false" data-board-tab="format" data-board-context-tab hidden>Formato</button>
+                    <button type="button" class="board-ribbon-collapse" data-board-ribbon-toggle title="Comprimi barra comandi" aria-label="Comprimi barra comandi" aria-expanded="true">⌃</button>
+                </div>
+                <div class="board-ribbon-panels">
+                    <section class="board-ribbon-panel active" role="tabpanel" data-board-panel="home">
+                        <div class="board-ribbon-group">
+                            <div class="board-ribbon-commands compact">
+                                <button data-board-command="paste" title="Incolla (Ctrl+V)">▣<span>Incolla</span></button>
+                                <button data-board-command="copy" title="Copia (Ctrl+C)">▢<span>Copia</span></button>
+                                <button data-board-command="cut" title="Taglia (Ctrl+X)">✂<span>Taglia</span></button>
+                                <button data-board-command="duplicate" title="Duplica selezione (Ctrl+D)">⧉<span>Duplica</span></button>
+                            </div>
+                            <small>Appunti</small>
+                        </div>
+                        <div class="board-ribbon-group">
+                            <div class="board-ribbon-commands compact">
+                                <button data-board-command="group" title="Raggruppa (Ctrl+G)">⬚<span>Raggruppa</span></button>
+                                <button data-board-command="ungroup" title="Separa gruppo (Ctrl+Shift+G)">◫<span>Separa</span></button>
+                                <button data-board-command="lock" title="Blocca o sblocca">⌾<span>Blocca</span></button>
+                                <button data-board-command="delete" title="Elimina (Canc)">⌫<span>Elimina</span></button>
+                            </div>
+                            <small>Modifica</small>
+                        </div>
+                        <div class="board-ribbon-group">
+                            <div class="board-ribbon-commands compact">
+                                <button data-board-command="align-menu" title="Apri le opzioni di allineamento">≡<span>Allinea ▾</span></button>
+                                <button data-board-command="forward" title="Porta avanti">⇧<span>Avanti</span></button>
+                                <button data-board-command="backward" title="Porta indietro">⇩<span>Indietro</span></button>
+                            </div>
+                            <small>Disponi</small>
+                        </div>
+                        <div class="board-ribbon-group board-ribbon-text-group">
+                            <div class="board-ribbon-commands">
+                                <div class="board-color-control" title="Colore del testo">
+                                    <button type="button" class="board-color-well" data-board-color-target="text" aria-label="Scegli colore del testo" aria-expanded="false">
+                                        <span class="board-color-preview" data-board-color-preview="text" style="--board-selected-color:#f8fafc"></span>
+                                    </button>
+                                    <input id="boardTextColorPicker" class="board-native-color" type="color" value="#f8fafc" aria-label="Altro colore del testo">
+                                    <span>Colore</span>
+                                </div>
+                                <label class="board-select-control" title="Carattere">
+                                    <select id="boardFontFamily" aria-label="Carattere">
+                                        <option value="Arial" selected>Arial</option><option value="Calibri">Calibri</option>
+                                        <option value="Georgia">Georgia</option><option value="Times New Roman">Times</option>
+                                        <option value="Verdana">Verdana</option><option value="Consolas">Consolas</option>
+                                    </select>
+                                    <span>Carattere</span>
+                                </label>
+                                <label class="board-select-control" title="Dimensione carattere">
+                                    <select id="boardFontSize" aria-label="Dimensione carattere">
+                                        <option value="14">14</option><option value="17">17</option><option value="20">20</option>
+                                        <option value="24" selected>24</option><option value="30">30</option><option value="36">36</option><option value="48">48</option>
+                                    </select>
+                                    <span>Dimensione</span>
+                                </label>
+                                <div class="board-ribbon-commands compact board-text-style-buttons" aria-label="Stile del testo">
+                                    <button type="button" data-board-text-style="normal" title="Stile normale">Aa<span>Normale</span></button>
+                                    <button type="button" data-board-text-style="bold" title="Grassetto"><b>G</b><span>Grassetto</span></button>
+                                    <button type="button" data-board-text-style="italic" title="Corsivo"><i>C</i><span>Corsivo</span></button>
+                                    <button type="button" data-board-text-style="underline" title="Sottolineato"><u>S</u><span>Sottolineato</span></button>
+                                    <button type="button" data-board-text-style="subscript" title="Pedice">X₂<span>Pedice</span></button>
+                                    <button type="button" data-board-text-style="superscript" title="Apice">X²<span>Apice</span></button>
+                                </div>
+                                <div class="board-ribbon-commands compact board-text-list-buttons" aria-label="Elenchi e attività">
+                                    <button type="button" data-board-list-command="bullet" title="Elenco puntato">•<span>Punti</span></button>
+                                    <button type="button" data-board-list-command="numbered" title="Elenco numerato">1.<span>Numeri</span></button>
+                                    <button type="button" data-board-list-command="checklist" title="Crea o rimuovi checklist">☐<span>Checklist</span></button>
+                                    <button type="button" data-board-list-command="toggle-check" title="Segna attività eseguita o da fare">✓<span>Eseguito</span></button>
+                                </div>
+                            </div>
+                            <small>Testo</small>
+                        </div>
+                        <div class="board-ribbon-group board-ribbon-object-style-group">
+                            <div class="board-ribbon-commands">
+                                <div class="board-color-control" title="Colore di linee e contorni">
+                                    <button type="button" class="board-color-well" data-board-color-target="line" aria-label="Scegli colore linea" aria-expanded="false">
+                                        <span class="board-color-preview" data-board-color-preview="line" style="--board-selected-color:#C99A54"></span>
+                                    </button>
+                                    <input id="boardLineColorPicker" class="board-native-color" type="color" value="#C99A54" aria-label="Altro colore linea">
+                                    <span>Contorno</span>
+                                </div>
+                                <label class="board-select-control" title="Spessore di linee e contorni">
+                                    <select id="boardStrokeWidth" aria-label="Spessore linea">
+                                        <option value="1">1</option><option value="2">2</option><option value="3" selected>3</option>
+                                        <option value="5">5</option><option value="8">8</option><option value="12">12</option>
+                                    </select>
+                                    <span>Linea</span>
+                                </label>
+                                <div class="board-color-control" title="Colore di sfondo o riempimento">
+                                    <button type="button" class="board-color-well" data-board-color-target="fill" aria-label="Scegli colore di sfondo" aria-expanded="false">
+                                        <span class="board-color-preview" data-board-color-preview="fill" style="--board-selected-color:#C99A54"></span>
+                                    </button>
+                                    <input id="boardFillColorPicker" class="board-native-color" type="color" value="#C99A54" aria-label="Altro colore di sfondo">
+                                    <span>Sfondo</span>
+                                </div>
+                                <label class="board-select-control" title="Trasparenza dello sfondo">
+                                    <select id="boardFillOpacity" aria-label="Trasparenza dello sfondo">
+                                        <option value="0">0%</option><option value="10">10%</option><option value="25">25%</option>
+                                        <option value="50">50%</option><option value="75" selected>75%</option><option value="100">100%</option>
+                                    </select>
+                                    <span>Trasparenza</span>
+                                </label>
+                            </div>
+                            <small>Forme e oggetti</small>
+                        </div>
+                    </section>
+                    <section class="board-ribbon-panel" role="tabpanel" data-board-panel="insert" hidden>
+                        <div class="board-ribbon-group">
+                            <div class="board-ribbon-commands">
+                                <button data-board-command="text" title="Inserisci testo">T<span>Testo</span></button>
+                                <button data-board-command="note" title="Inserisci nota adesiva">▤<span>Nota</span></button>
+                                <button data-board-command="shapes" title="Apri la raccolta delle forme">◇<span>Forme ▾</span></button>
+                                <button data-board-command="frame" title="Inserisci cornice organizzativa">▣<span>Cornice</span></button>
+                                <button data-board-command="table" title="Inserisci tabella modificabile">▦<span>Tabella</span></button>
+                            </div>
+                            <small>Elementi</small>
+                        </div>
+                        <div class="board-ribbon-group">
+                            <div class="board-ribbon-commands">
+                                <button data-board-command="image" title="Inserisci immagine">▧<span>Immagine</span></button>
+                                <button data-board-command="video" title="Collega video locale o di rete">▶<span>Video</span></button>
+                                <button data-board-command="folder" title="Collega cartella locale, NAS o server">⌂<span>Cartella</span></button>
+                                <button data-board-command="web" title="Inserisci collegamento Internet">↗<span>Internet</span></button>
+                                <button data-board-command="open-link" title="Apri il collegamento selezionato">◉<span>Apri</span></button>
+                            </div>
+                            <small>Collegamenti e media</small>
+                        </div>
+                        <div class="board-ribbon-group">
+                            <div class="board-ribbon-commands">
+                                <button data-board-command="connect" title="Avvia il collegamento guidato tra due oggetti">⤳<span>Collega</span></button>
+                            </div>
+                            <small>Connessioni</small>
+                        </div>
+                    </section>
+                    <section class="board-ribbon-panel" role="tabpanel" data-board-panel="draw" hidden>
+                        <div class="board-ribbon-group">
+                            <div class="board-ribbon-commands">
+                                <button data-board-command="draw" title="Attiva il disegno libero con il mouse">✎<span>Matita</span></button>
+                                <button data-board-command="erase-drawing" title="Elimina con un clic un tratto disegnato">⌫<span>Gomma</span></button>
+                                <label class="board-color-control" title="Colore della matita">
+                                    <input id="boardDrawColor" type="color" value="#C99A54" aria-label="Colore della matita">
+                                    <span>Colore</span>
+                                </label>
+                                <label class="board-select-control" title="Spessore della matita">
+                                    <select id="boardDrawWidth" aria-label="Spessore della matita">
+                                        <option value="1">1</option><option value="2">2</option><option value="3" selected>3</option>
+                                        <option value="5">5</option><option value="8">8</option><option value="12">12</option>
+                                    </select>
+                                    <span>Spessore</span>
+                                </label>
+                            </div>
+                            <small>Strumenti</small>
+                        </div>
+                        <div class="board-ribbon-hint">Scegli Matita o Gomma, quindi usa il mouse sulla lavagna. Spazio+trascina sposta la visuale.</div>
+                    </section>
+                    <section class="board-ribbon-panel" role="tabpanel" data-board-panel="view" hidden>
+                        <div class="board-ribbon-group">
+                            <div class="board-ribbon-commands">
+                                <button data-board-command="zoom-in" title="Aumenta zoom (Ctrl++)">＋<span>Zoom +</span></button>
+                                <button data-board-command="zoom-out" title="Riduci zoom (Ctrl+-)">−<span>Zoom −</span></button>
+                                <button data-board-command="fit" title="Adatta il contenuto (Ctrl+0)">⊙<span>Adatta</span></button>
+                            </div>
+                            <small>Zoom</small>
+                        </div>
+                        <div class="board-ribbon-group">
+                            <div class="board-ribbon-commands">
+                                <button data-board-command="snap" title="Attiva o disattiva l’aggancio alla griglia">⌗<span>Griglia</span></button>
+                                <button data-board-command="toggle-layers" title="Mostra o nasconde il pannello oggetti e livelli">☷<span>Oggetti</span></button>
+                                <button data-board-command="toggle-minimap" title="Mostra o nasconde la minimappa">▧<span>Minimappa</span></button>
+                            </div>
+                            <small>Visualizzazione</small>
+                        </div>
+                    </section>
+                    <section class="board-ribbon-panel" role="tabpanel" data-board-panel="export" hidden>
+                        <div class="board-ribbon-group">
+                            <div class="board-ribbon-commands">
+                                <button data-board-command="save" title="Salva ora">✓<span>Salva</span></button>
+                                <button data-board-command="export-png" title="Esporta l’intera lavagna in PNG">⇩<span>PNG</span></button>
+                                <button data-board-command="export-pdf" title="Esporta l’intera lavagna in PDF">⇩<span>PDF</span></button>
+                            </div>
+                            <small>File</small>
+                        </div>
+                    </section>
+                    <section class="board-ribbon-panel" role="tabpanel" data-board-panel="format" hidden>
+                        <div class="board-ribbon-context-title" id="boardContextTitle">Oggetto</div>
+                        <div class="board-ribbon-group">
+                            <div class="board-ribbon-commands">
+                                <button data-board-command="edit-object" title="Modifica il contenuto dell’oggetto selezionato">✎<span>Modifica</span></button>
+                                <button data-board-command="open-link" title="Apri il collegamento o il video selezionato">◉<span>Apri</span></button>
+                                <button data-board-command="lock" title="Blocca o sblocca">⌾<span>Blocca</span></button>
+                                <button data-board-command="group" title="Raggruppa">⬚<span>Raggruppa</span></button>
+                                <button data-board-command="ungroup" title="Separa">◫<span>Separa</span></button>
+                                <button data-board-command="forward" title="Porta avanti">⇧<span>Avanti</span></button>
+                                <button data-board-command="backward" title="Porta indietro">⇩<span>Indietro</span></button>
+                                <button data-board-command="context-home-text" title="Apri gli strumenti di formattazione del testo">A<span>Testo</span></button>
+                                <button data-board-command="context-home-object" title="Apri gli strumenti di aspetto dell’oggetto">◆<span>Aspetto</span></button>
+                            </div>
+                            <small>Oggetto selezionato</small>
+                        </div>
+                        <div class="board-ribbon-hint" id="boardContextHint">Scegli Testo o Aspetto per aprire direttamente gli strumenti pertinenti.</div>
+                    </section>
+                </div>
+                <div id="boardShapeGallery" class="board-shape-gallery" hidden>
+                    <strong>Forme</strong>
+                    <div>
+                        <button type="button" data-board-shape="rectangle" title="Rettangolo">▭<span>Rettangolo</span></button>
+                        <button type="button" data-board-shape="circle" title="Cerchio">○<span>Cerchio</span></button>
+                        <button type="button" data-board-shape="triangle" title="Triangolo">△<span>Triangolo</span></button>
+                        <button type="button" data-board-shape="line" title="Linea">╱<span>Linea</span></button>
+                        <button type="button" data-board-shape="arrow" title="Inserisci una freccia libera">→<span>Freccia libera</span></button>
+                    </div>
+                </div>
+                <div id="boardAlignGallery" class="board-shape-gallery board-align-gallery" hidden>
+                    <strong>Allinea e distribuisci</strong>
+                    <div>
+                        <button type="button" data-board-align="left" title="Allinea a sinistra">⇤<span>Sinistra</span></button>
+                        <button type="button" data-board-align="center-x" title="Centra orizzontalmente">↔<span>Centro X</span></button>
+                        <button type="button" data-board-align="right" title="Allinea a destra">⇥<span>Destra</span></button>
+                        <button type="button" data-board-align="top" title="Allinea in alto">↥<span>Alto</span></button>
+                        <button type="button" data-board-align="center-y" title="Centra verticalmente">↕<span>Centro Y</span></button>
+                        <button type="button" data-board-align="bottom" title="Allinea in basso">↧<span>Basso</span></button>
+                        <button type="button" data-board-align="distribute-x" title="Distribuisci orizzontalmente">⇹<span>Distribuisci X</span></button>
+                        <button type="button" data-board-align="distribute-y" title="Distribuisci verticalmente">⇳<span>Distribuisci Y</span></button>
+                    </div>
+                </div>
+                <div id="boardColorGallery" class="board-color-gallery" hidden>
+                    <strong id="boardColorGalleryTitle">Scegli colore</strong>
+                    <div class="board-color-presets" aria-label="Colori preimpostati">
+                        <button type="button" data-board-color-value="#000000" style="--swatch:#000000" aria-label="Nero"></button>
+                        <button type="button" data-board-color-value="#374151" style="--swatch:#374151" aria-label="Grigio scuro"></button>
+                        <button type="button" data-board-color-value="#6b7280" style="--swatch:#6b7280" aria-label="Grigio"></button>
+                        <button type="button" data-board-color-value="#ffffff" style="--swatch:#ffffff" aria-label="Bianco"></button>
+                        <button type="button" data-board-color-value="#ef4444" style="--swatch:#ef4444" aria-label="Rosso"></button>
+                        <button type="button" data-board-color-value="#f97316" style="--swatch:#f97316" aria-label="Arancione"></button>
+                        <button type="button" data-board-color-value="#eab308" style="--swatch:#eab308" aria-label="Giallo"></button>
+                        <button type="button" data-board-color-value="#22c55e" style="--swatch:#22c55e" aria-label="Verde"></button>
+                        <button type="button" data-board-color-value="#06b6d4" style="--swatch:#06b6d4" aria-label="Azzurro"></button>
+                        <button type="button" data-board-color-value="#3b82f6" style="--swatch:#3b82f6" aria-label="Blu"></button>
+                        <button type="button" data-board-color-value="#8b5cf6" style="--swatch:#8b5cf6" aria-label="Viola"></button>
+                        <button type="button" data-board-color-value="#ec4899" style="--swatch:#ec4899" aria-label="Rosa"></button>
+                        <button type="button" data-board-color-value="#fecaca" style="--swatch:#fecaca" aria-label="Rosso chiaro"></button>
+                        <button type="button" data-board-color-value="#fde68a" style="--swatch:#fde68a" aria-label="Giallo chiaro"></button>
+                        <button type="button" data-board-color-value="#bbf7d0" style="--swatch:#bbf7d0" aria-label="Verde chiaro"></button>
+                        <button type="button" data-board-color-value="#bfdbfe" style="--swatch:#bfdbfe" aria-label="Blu chiaro"></button>
+                    </div>
+                    <button type="button" id="boardMoreColors">Altri colori…</button>
+                </div>
+            </nav>
+            <input type="hidden" id="projectBoardProjectId">
+            <div class="board-workspace">
+                <div id="projectBoardCanvasWrap" class="board-canvas-wrap">
+                    <canvas id="projectBoardCanvas"></canvas>
+                    <div id="boardHelp" class="board-help">Doppio click: apri o modifica · Rotellina: zoom · Spazio+trascina: sposta</div>
+                    <div id="boardMinimap" class="board-minimap" aria-label="Minimappa della lavagna">
+                        <canvas id="boardMinimapCanvas" width="220" height="130"></canvas>
+                    </div>
+                    <div class="board-statusbar" aria-label="Stato della lavagna">
+                        <span id="boardSelectionStatus">Nessuna selezione</span>
+                        <span id="boardObjectCount">0 oggetti</span>
+                        <div class="board-status-zoom">
+                            <button type="button" data-board-command="zoom-out" aria-label="Riduci zoom">−</button>
+                            <input id="boardZoomSlider" type="range" min="8" max="800" value="100" aria-label="Livello zoom">
+                            <button type="button" data-board-command="zoom-in" aria-label="Aumenta zoom">＋</button>
+                            <span id="boardZoomValue">100%</span>
+                        </div>
+                    </div>
+                    <div id="boardLinkDialog" class="board-link-dialog" hidden>
+                        <h3 id="boardLinkDialogTitle">Nuovo collegamento</h3>
+                        <label for="boardLinkTarget">Destinazione</label>
+                        <input id="boardLinkTarget" type="text" autocomplete="off">
+                        <label for="boardLinkLabel">Etichetta (opzionale)</label>
+                        <input id="boardLinkLabel" type="text" maxlength="120" autocomplete="off">
+                        <div class="board-link-dialog-actions">
+                            <button type="button" data-board-link-action="cancel">Annulla</button>
+                            <button type="button" class="primary" data-board-link-action="confirm">Aggiungi</button>
+                        </div>
+                    </div>
+                    <div id="boardTableDialog" class="board-link-dialog board-table-dialog" hidden>
+                        <h3>Modifica tabella</h3>
+                        <div class="board-table-tools" aria-label="Dimensioni tabella">
+                            <label>Righe <input id="boardTableRows" type="number" min="1" max="30" value="3" aria-label="Numero di righe"></label>
+                            <label>Colonne <input id="boardTableColumns" type="number" min="1" max="12" value="3" aria-label="Numero di colonne"></label>
+                            <button type="button" data-board-table-action="add-row">+ Riga</button>
+                            <button type="button" data-board-table-action="remove-row">− Riga</button>
+                            <button type="button" data-board-table-action="add-column">+ Colonna</button>
+                            <button type="button" data-board-table-action="remove-column">− Colonna</button>
+                        </div>
+                        <div class="board-table-format-tools" aria-label="Formato celle selezionate">
+                            <label title="Colore di sfondo della cella"><input id="boardTableFill" type="color" value="#252a34" aria-label="Colore cella"><span>Riempimento</span></label>
+                            <label title="Colore del testo della cella"><input id="boardTableTextColor" type="color" value="#f3f4f6" aria-label="Colore testo cella"><span>Testo</span></label>
+                            <select id="boardTableFontFamily" aria-label="Carattere delle celle">
+                                <option value="Arial">Arial</option><option value="Calibri">Calibri</option><option value="Georgia">Georgia</option><option value="Verdana">Verdana</option>
+                            </select>
+                            <input id="boardTableFontSize" type="number" min="8" max="96" value="17" aria-label="Dimensione testo delle celle">
+                            <button type="button" data-board-table-format="bold" title="Grassetto" aria-label="Grassetto"><strong>G</strong></button>
+                            <button type="button" data-board-table-format="italic" title="Corsivo" aria-label="Corsivo"><em>C</em></button>
+                            <button type="button" data-board-table-format="underline" title="Sottolineato" aria-label="Sottolineato"><u>S</u></button>
+                            <span class="board-table-format-divider" aria-hidden="true"></span>
+                            <button type="button" data-board-table-format="align-left" title="Allinea a sinistra" aria-label="Allinea testo a sinistra">≡</button>
+                            <button type="button" data-board-table-format="align-center" title="Centra orizzontalmente" aria-label="Centra testo orizzontalmente">≡</button>
+                            <button type="button" data-board-table-format="align-right" title="Allinea a destra" aria-label="Allinea testo a destra">≡</button>
+                            <span class="board-table-format-divider" aria-hidden="true"></span>
+                            <button type="button" data-board-table-format="align-top" title="Allinea in alto" aria-label="Allinea testo in alto">↥</button>
+                            <button type="button" data-board-table-format="align-middle" title="Centra verticalmente" aria-label="Centra testo verticalmente">↕</button>
+                            <button type="button" data-board-table-format="align-bottom" title="Allinea in basso" aria-label="Allinea testo in basso">↧</button>
+                        </div>
+                        <div id="boardTableEditor" class="board-table-editor"></div>
+                        <div class="board-link-dialog-actions">
+                            <button type="button" data-board-table-action="cancel">Annulla</button>
+                            <button type="button" class="primary" data-board-table-action="confirm">Applica</button>
+                        </div>
+                    </div>
+                    <div id="boardContextMenu" class="board-context-menu" hidden>
+                        <button type="button" data-board-context-action="duplicate">Duplica <span>Ctrl+D</span></button>
+                        <button type="button" data-board-context-action="lock">Blocca / sblocca</button>
+                        <button type="button" data-board-context-action="forward">Porta avanti</button>
+                        <button type="button" data-board-context-action="backward">Porta indietro</button>
+                        <button type="button" class="danger" data-board-context-action="delete">Elimina <span>Canc</span></button>
+                    </div>
+                </div>
+                <aside id="boardSidePanel" class="board-side-panel" hidden aria-label="Pannello lavagna">
+                    <div class="board-side-panel-header">
+                        <strong>Organizza</strong>
+                        <button type="button" data-board-command="toggle-layers" aria-label="Chiudi pannello">×</button>
+                    </div>
+                    <div class="board-side-tabs" role="tablist">
+                        <button type="button" role="tab" aria-selected="true" data-board-side-tab="objects">Oggetti</button>
+                        <button type="button" role="tab" aria-selected="false" data-board-side-tab="trash">Cestino</button>
+                        <button type="button" role="tab" aria-selected="false" data-board-side-tab="versions">Versioni</button>
+                    </div>
+                    <section class="board-side-content" data-board-side-panel="objects">
+                        <input id="boardObjectSearch" type="search" placeholder="Cerca oggetti…" aria-label="Cerca oggetti">
+                        <div id="boardObjectList" class="board-object-list"></div>
+                    </section>
+                    <section class="board-side-content" data-board-side-panel="trash" hidden>
+                        <div class="board-side-actions">
+                            <button type="button" data-board-trash-action="restore-all">Ripristina tutto</button>
+                            <button type="button" class="danger" data-board-trash-action="empty">Svuota</button>
+                        </div>
+                        <div id="boardTrashList" class="board-object-list"></div>
+                    </section>
+                    <section class="board-side-content" data-board-side-panel="versions" hidden>
+                        <div class="board-version-create">
+                            <input id="boardVersionName" maxlength="80" placeholder="Nome della versione">
+                            <button type="button" data-board-version-action="create">Salva</button>
+                        </div>
+                        <p class="board-side-note">Le versioni automatiche proteggono il lavoro recente; quelle nominate restano riconoscibili.</p>
+                        <div id="boardVersionList" class="board-version-list"></div>
+                    </section>
+                </aside>
             </div>
         </div>
     </div>
@@ -577,40 +1179,40 @@
         <div class="modal-content" style="max-width: 550px;">
             <div class="modal-header">
                 <h2>Nuova Sessione Manuale</h2>
-                <p style="color: #6b7280;">Inserisci i dati della sessione</p>
+                <p style="color: #9C9086;">Inserisci i dati della sessione</p>
             </div>
             <div class="modal-body">
-                <label style="color: #ffffff; font-weight: 600; margin-bottom: 10px; display: block;">Progetto:</label>
-                <div id="projectRadioList" style="margin-bottom: 15px; max-height: 150px; overflow-y: auto; border: 1px solid #4a4a4a; border-radius: 6px; padding: 10px;">
-                    <p style="color: #6b7280;">Caricamento progetti...</p>
+                <label style="color: #E4DACB; font-weight: 600; margin-bottom: 10px; display: block;">Progetto:</label>
+                <div id="projectRadioList" style="margin-bottom: 15px; max-height: 150px; overflow-y: auto; border: 1px solid #443A2E; border-radius: 6px; padding: 10px;">
+                    <p style="color: #9C9086;">Caricamento progetti...</p>
                 </div>
 
-                <label style="color: #ffffff; font-weight: 600; margin-bottom: 8px; display: block;">Orario di Inizio:</label>
+                <label style="color: #E4DACB; font-weight: 600; margin-bottom: 8px; display: block;">Orario di Inizio:</label>
                 <div style="display: flex; gap: 10px; margin-bottom: 15px; align-items: center;">
-                    <input type="date" id="sessionStartDate" style="flex: 2; padding: 10px; border: 1px solid #4a4a4a; border-radius: 6px; background: #1a1a1a; color: #ffffff;">
-                    <select id="sessionStartHour" style="flex: 1; padding: 10px; border: 1px solid #4a4a4a; border-radius: 6px; background: #1a1a1a; color: #ffffff;"></select>
-                    <span style="color: #999999; font-weight: bold;">:</span>
-                    <select id="sessionStartMinute" style="flex: 1; padding: 10px; border: 1px solid #4a4a4a; border-radius: 6px; background: #1a1a1a; color: #ffffff;"></select>
+                    <input type="date" id="sessionStartDate" style="flex: 2; padding: 10px; border: 1px solid #443A2E; border-radius: 6px; background: #1C1815; color: #E4DACB;">
+                    <select id="sessionStartHour" style="flex: 1; padding: 10px; border: 1px solid #443A2E; border-radius: 6px; background: #1C1815; color: #E4DACB;"></select>
+                    <span style="color: #9C9086; font-weight: bold;">:</span>
+                    <select id="sessionStartMinute" style="flex: 1; padding: 10px; border: 1px solid #443A2E; border-radius: 6px; background: #1C1815; color: #E4DACB;"></select>
                 </div>
 
-                <label style="color: #ffffff; font-weight: 600; margin-bottom: 8px; display: block;">Orario di Fine:</label>
+                <label style="color: #E4DACB; font-weight: 600; margin-bottom: 8px; display: block;">Orario di Fine:</label>
                 <div style="display: flex; gap: 10px; margin-bottom: 15px; align-items: center;">
-                    <input type="date" id="sessionEndDate" style="flex: 2; padding: 10px; border: 1px solid #4a4a4a; border-radius: 6px; background: #1a1a1a; color: #ffffff;">
-                    <select id="sessionEndHour" style="flex: 1; padding: 10px; border: 1px solid #4a4a4a; border-radius: 6px; background: #1a1a1a; color: #ffffff;"></select>
-                    <span style="color: #999999; font-weight: bold;">:</span>
-                    <select id="sessionEndMinute" style="flex: 1; padding: 10px; border: 1px solid #4a4a4a; border-radius: 6px; background: #1a1a1a; color: #ffffff;"></select>
+                    <input type="date" id="sessionEndDate" style="flex: 2; padding: 10px; border: 1px solid #443A2E; border-radius: 6px; background: #1C1815; color: #E4DACB;">
+                    <select id="sessionEndHour" style="flex: 1; padding: 10px; border: 1px solid #443A2E; border-radius: 6px; background: #1C1815; color: #E4DACB;"></select>
+                    <span style="color: #9C9086; font-weight: bold;">:</span>
+                    <select id="sessionEndMinute" style="flex: 1; padding: 10px; border: 1px solid #443A2E; border-radius: 6px; background: #1C1815; color: #E4DACB;"></select>
                 </div>
 
-                <p style="color: #999999; font-size: 0.9em; margin-bottom: 15px;">Durata: <strong id="sessionCalculatedDuration" style="color: #ff6b2b;">--</strong></p>
+                <p style="color: #9C9086; font-size: 0.9em; margin-bottom: 15px;">Durata: <strong id="sessionCalculatedDuration" style="color: #C99A54;">--</strong></p>
 
-                <label style="color: #ffffff; font-weight: 600; margin-bottom: 8px; display: block;">Tipo Attività (opzionale):</label>
-                <select id="sessionActivityType" style="width: 100%; padding: 10px; border: 1px solid #4a4a4a; border-radius: 6px; background: #1a1a1a; color: #ffffff;">
+                <label style="color: #E4DACB; font-weight: 600; margin-bottom: 8px; display: block;">Tipo Attività (opzionale):</label>
+                <select id="sessionActivityType" style="width: 100%; padding: 10px; border: 1px solid #443A2E; border-radius: 6px; background: #1C1815; color: #E4DACB;">
                     <option value="">Nessuno</option>
                 </select>
             </div>
             <div class="modal-buttons">
-                <button class="btn" style="background: #6b7280;" onclick="closeCreateSessionModal()">Annulla</button>
-                <button class="btn btn-success" onclick="saveNewSession()">Crea Sessione</button>
+                <button class="btn" style="background: #443A2E;" data-action="closeCreateSessionModal">Annulla</button>
+                <button class="btn btn-success" data-action="saveNewSession">Crea Sessione</button>
             </div>
         </div>
     </div>
@@ -619,11 +1221,11 @@
         <div class="modal-content" style="max-width: 700px;">
             <div class="modal-header">
                 <h2>Report di Chiusura Progetto</h2>
-                <p style="color: #6b7280;">Riepilogo delle attività del progetto</p>
+                <p style="color: #9C9086;">Riepilogo delle attività del progetto</p>
             </div>
             <div class="modal-body" id="reportContent" style="max-height: 500px; overflow-y: auto;"></div>
             <div class="modal-buttons">
-                <button class="btn" style="background: #6b7280;" onclick="closeReportModal()">Chiudi</button>
+                <button class="btn" style="background: #443A2E;" data-action="closeReportModal">Chiudi</button>
             </div>
         </div>
     </div>
@@ -633,21 +1235,21 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h2>Periodo di Inattività Rilevato</h2>
-                <p style="color: #6b7280;">È stato rilevato un periodo di inattività. A quale progetto vuoi attribuire questo tempo?</p>
+                <p style="color: #9C9086;">È stato rilevato un periodo di inattività. A quale progetto vuoi attribuire questo tempo?</p>
             </div>
             <div class="modal-body">
-                <div style="background: #1a1a1a; padding: 15px; border-radius: 16px; margin-bottom: 20px; border: 1px solid #3a3a3a;">
-                    <p style="margin: 5px 0; color: #999999;"><strong style="color: #ff6b2b;">Durata:</strong> <span id="idleDuration"></span></p>
-                    <p style="margin: 5px 0; color: #999999;"><strong style="color: #ff6b2b;">Periodo:</strong> <span id="idlePeriod"></span></p>
+                <div style="background: #1C1815; padding: 15px; border-radius: 10px; margin-bottom: 20px; border: 1px solid #322B24;">
+                    <p style="margin: 5px 0; color: #9C9086;"><strong style="color: #C99A54;">Durata:</strong> <span id="idleDuration"></span></p>
+                    <p style="margin: 5px 0; color: #9C9086;"><strong style="color: #C99A54;">Periodo:</strong> <span id="idlePeriod"></span></p>
                 </div>
-                <label style="color: #ffffff; font-weight: 600; margin-bottom: 10px; display: block;">Seleziona progetto o pausa:</label>
+                <label style="color: #E4DACB; font-weight: 600; margin-bottom: 10px; display: block;">Seleziona progetto o pausa:</label>
                 <select id="idleProjectSelect">
                     <option value="">Seleziona...</option>
                 </select>
             </div>
             <div class="modal-buttons">
-                <button class="btn" style="background: #6b7280;" onclick="attributeIdleAsBreak()">Era una Pausa</button>
-                <button class="btn btn-success" onclick="attributeIdleToProject()">Conferma Attribuzione</button>
+                <button class="btn" style="background: #443A2E;" data-action="attributeIdleAsBreak">Era una Pausa</button>
+                <button class="btn btn-success" data-action="attributeIdleToProject">Conferma Attribuzione</button>
             </div>
         </div>
     </div>
@@ -657,21 +1259,21 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h2>Modifica Tipo Attività</h2>
-                <p style="color: #6b7280;" id="editSessionActivityProject"></p>
+                <p style="color: #9C9086;" id="editSessionActivityProject"></p>
             </div>
             <div class="modal-body">
                 <input type="hidden" id="editSessionActivityId">
-                <div style="background: #1a1a1a; padding: 15px; border-radius: 16px; margin-bottom: 20px; border: 1px solid #3a3a3a;">
-                    <p style="margin: 5px 0; color: #999999;"><strong style="color: #ff6b2b;">Attuale:</strong> <span id="editSessionActivityCurrent"></span></p>
+                <div style="background: #1C1815; padding: 15px; border-radius: 10px; margin-bottom: 20px; border: 1px solid #322B24;">
+                    <p style="margin: 5px 0; color: #9C9086;"><strong style="color: #C99A54;">Attuale:</strong> <span id="editSessionActivityCurrent"></span></p>
                 </div>
-                <label style="color: #ffffff; font-weight: 600; margin-bottom: 10px; display: block;">Seleziona nuovo tipo:</label>
+                <label style="color: #E4DACB; font-weight: 600; margin-bottom: 10px; display: block;">Seleziona nuovo tipo:</label>
                 <select id="editSessionActivitySelect">
                     <option value="">Nessuno</option>
                 </select>
             </div>
             <div class="modal-buttons">
-                <button class="btn" style="background: #6b7280;" onclick="closeEditSessionActivityModal()">Annulla</button>
-                <button class="btn btn-success" onclick="confirmEditSessionActivity()">Conferma</button>
+                <button class="btn" style="background: #443A2E;" data-action="closeEditSessionActivityModal">Annulla</button>
+                <button class="btn btn-success" data-action="confirmEditSessionActivity">Conferma</button>
             </div>
         </div>
     </div>
@@ -681,19 +1283,19 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h2>Modifica Durata</h2>
-                <p style="color: #6b7280;" id="editSessionDurationProject"></p>
+                <p style="color: #9C9086;" id="editSessionDurationProject"></p>
             </div>
             <div class="modal-body">
                 <input type="hidden" id="editSessionDurationId">
-                <div style="background: #1a1a1a; padding: 15px; border-radius: 16px; margin-bottom: 20px; border: 1px solid #3a3a3a;">
-                    <p style="margin: 5px 0; color: #999999;"><strong style="color: #ff6b2b;">Durata attuale:</strong> <span id="editSessionDurationCurrent"></span> minuti</p>
+                <div style="background: #1C1815; padding: 15px; border-radius: 10px; margin-bottom: 20px; border: 1px solid #322B24;">
+                    <p style="margin: 5px 0; color: #9C9086;"><strong style="color: #C99A54;">Durata attuale:</strong> <span id="editSessionDurationCurrent"></span> minuti</p>
                 </div>
-                <label style="color: #ffffff; font-weight: 600; margin-bottom: 10px; display: block;">Nuova durata (minuti):</label>
-                <input type="number" id="editSessionDurationInput" placeholder="30" min="1" style="width: 100%; padding: 10px; border: 1px solid #4a4a4a; border-radius: 6px; background: #1a1a1a; color: #ffffff;">
+                <label style="color: #E4DACB; font-weight: 600; margin-bottom: 10px; display: block;">Nuova durata (minuti):</label>
+                <input type="number" id="editSessionDurationInput" placeholder="30" min="1" style="width: 100%; padding: 10px; border: 1px solid #443A2E; border-radius: 6px; background: #1C1815; color: #E4DACB;">
             </div>
             <div class="modal-buttons">
-                <button class="btn" style="background: #6b7280;" onclick="closeEditSessionDurationModal()">Annulla</button>
-                <button class="btn btn-success" onclick="confirmEditSessionDuration()">Conferma</button>
+                <button class="btn" style="background: #443A2E;" data-action="closeEditSessionDurationModal">Annulla</button>
+                <button class="btn btn-success" data-action="confirmEditSessionDuration">Conferma</button>
             </div>
         </div>
     </div>
@@ -703,37 +1305,37 @@
         <div class="modal-content" style="max-width: 500px;">
             <div class="modal-header">
                 <h2>Dividi Sessione</h2>
-                <p style="color: #6b7280;" id="splitSessionProject"></p>
+                <p style="color: #9C9086;" id="splitSessionProject"></p>
             </div>
             <div class="modal-body">
                 <input type="hidden" id="splitSessionId">
                 <input type="hidden" id="splitSessionTotalSeconds">
-                <div style="background: #1a1a1a; padding: 15px; border-radius: 16px; margin-bottom: 20px; border: 1px solid #3a3a3a;">
-                    <p style="margin: 5px 0; color: #999999;"><strong style="color: #ff6b2b;">Durata totale:</strong> <span id="splitSessionTotal"></span> minuti</p>
+                <div style="background: #1C1815; padding: 15px; border-radius: 10px; margin-bottom: 20px; border: 1px solid #322B24;">
+                    <p style="margin: 5px 0; color: #9C9086;"><strong style="color: #C99A54;">Durata totale:</strong> <span id="splitSessionTotal"></span> minuti</p>
                 </div>
 
-                <label style="color: #ffffff; font-weight: 600; margin-bottom: 10px; display: block;">Durata prima parte (minuti):</label>
-                <input type="number" id="splitSessionFirstPart" placeholder="15" min="1" style="width: 100%; padding: 10px; border: 1px solid #4a4a4a; border-radius: 6px; margin-bottom: 15px; background: #1a1a1a; color: #ffffff;">
-                <p style="color: #999999; font-size: 0.9em; margin-bottom: 20px;">Seconda parte: <span id="splitSessionSecondPart">--</span> minuti</p>
+                <label style="color: #E4DACB; font-weight: 600; margin-bottom: 10px; display: block;">Durata prima parte (minuti):</label>
+                <input type="number" id="splitSessionFirstPart" placeholder="15" min="1" style="width: 100%; padding: 10px; border: 1px solid #443A2E; border-radius: 6px; margin-bottom: 15px; background: #1C1815; color: #E4DACB;">
+                <p style="color: #9C9086; font-size: 0.9em; margin-bottom: 20px;">Seconda parte: <span id="splitSessionSecondPart">--</span> minuti</p>
 
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
                     <div>
-                        <label style="color: #ffffff; font-weight: 600; margin-bottom: 10px; display: block;">Tipo prima parte:</label>
-                        <select id="splitSessionFirstType" style="width: 100%; padding: 10px; border: 1px solid #4a4a4a; border-radius: 6px; background: #1a1a1a; color: #ffffff;">
+                        <label style="color: #E4DACB; font-weight: 600; margin-bottom: 10px; display: block;">Tipo prima parte:</label>
+                        <select id="splitSessionFirstType" style="width: 100%; padding: 10px; border: 1px solid #443A2E; border-radius: 6px; background: #1C1815; color: #E4DACB;">
                             <option value="">Nessuno</option>
                         </select>
                     </div>
                     <div>
-                        <label style="color: #ffffff; font-weight: 600; margin-bottom: 10px; display: block;">Tipo seconda parte:</label>
-                        <select id="splitSessionSecondType" style="width: 100%; padding: 10px; border: 1px solid #4a4a4a; border-radius: 6px; background: #1a1a1a; color: #ffffff;">
+                        <label style="color: #E4DACB; font-weight: 600; margin-bottom: 10px; display: block;">Tipo seconda parte:</label>
+                        <select id="splitSessionSecondType" style="width: 100%; padding: 10px; border: 1px solid #443A2E; border-radius: 6px; background: #1C1815; color: #E4DACB;">
                             <option value="">Nessuno</option>
                         </select>
                     </div>
                 </div>
             </div>
             <div class="modal-buttons">
-                <button class="btn" style="background: #6b7280;" onclick="closeSplitSessionModal()">Annulla</button>
-                <button class="btn btn-success" onclick="confirmSplitSession()">Dividi Sessione</button>
+                <button class="btn" style="background: #443A2E;" data-action="closeSplitSessionModal">Annulla</button>
+                <button class="btn btn-success" data-action="confirmSplitSession">Dividi Sessione</button>
             </div>
         </div>
     </div>
@@ -743,36 +1345,36 @@
         <div class="modal-content" style="max-width: 600px;">
             <div class="modal-header">
                 <h2>Modifica Sessione</h2>
-                <p style="color: #6b7280;" id="editSessionUnifiedProject"></p>
+                <p style="color: #9C9086;" id="editSessionUnifiedProject"></p>
             </div>
             <div class="modal-body">
                 <input type="hidden" id="editSessionUnifiedId">
 
                 <!-- Info sessione corrente -->
-                <div style="background: #1a1a1a; padding: 15px; border-radius: 16px; margin-bottom: 20px; border: 1px solid #3a3a3a;">
-                    <p style="margin: 5px 0; color: #999999;"><strong style="color: #ff6b2b;">Durata attuale:</strong> <span id="editSessionUnifiedCurrentDuration"></span></p>
-                    <p style="margin: 5px 0; color: #999999;"><strong style="color: #ff6b2b;">Periodo:</strong> <span id="editSessionUnifiedCurrentPeriod"></span></p>
+                <div style="background: #1C1815; padding: 15px; border-radius: 10px; margin-bottom: 20px; border: 1px solid #322B24;">
+                    <p style="margin: 5px 0; color: #9C9086;"><strong style="color: #C99A54;">Durata attuale:</strong> <span id="editSessionUnifiedCurrentDuration"></span></p>
+                    <p style="margin: 5px 0; color: #9C9086;"><strong style="color: #C99A54;">Periodo:</strong> <span id="editSessionUnifiedCurrentPeriod"></span></p>
                 </div>
 
                 <!-- Orario di inizio -->
-                <label style="color: #ffffff; font-weight: 600; margin-bottom: 10px; display: block;">Orario di Inizio:</label>
+                <label style="color: #E4DACB; font-weight: 600; margin-bottom: 10px; display: block;">Orario di Inizio:</label>
                 <div style="display: flex; gap: 10px; margin-bottom: 20px; align-items: center;">
-                    <input type="date" id="editSessionUnifiedStartDate" style="flex: 2; padding: 10px; border: 1px solid #4a4a4a; border-radius: 6px; background: #1a1a1a; color: #ffffff;">
-                    <select id="editSessionUnifiedStartHour" style="flex: 1; padding: 10px; border: 1px solid #4a4a4a; border-radius: 6px; background: #1a1a1a; color: #ffffff;"></select>
-                    <span style="color: #999999; font-weight: bold;">:</span>
-                    <select id="editSessionUnifiedStartMinute" style="flex: 1; padding: 10px; border: 1px solid #4a4a4a; border-radius: 6px; background: #1a1a1a; color: #ffffff;"></select>
+                    <input type="date" id="editSessionUnifiedStartDate" style="flex: 2; padding: 10px; border: 1px solid #443A2E; border-radius: 6px; background: #1C1815; color: #E4DACB;">
+                    <select id="editSessionUnifiedStartHour" style="flex: 1; padding: 10px; border: 1px solid #443A2E; border-radius: 6px; background: #1C1815; color: #E4DACB;"></select>
+                    <span style="color: #9C9086; font-weight: bold;">:</span>
+                    <select id="editSessionUnifiedStartMinute" style="flex: 1; padding: 10px; border: 1px solid #443A2E; border-radius: 6px; background: #1C1815; color: #E4DACB;"></select>
                 </div>
 
                 <!-- Modalità: Fine o Divisione -->
-                <label style="color: #ffffff; font-weight: 600; margin-bottom: 10px; display: block;">Modalità:</label>
+                <label style="color: #E4DACB; font-weight: 600; margin-bottom: 10px; display: block;">Modalità:</label>
                 <div style="display: flex; gap: 15px; margin-bottom: 20px;">
-                    <label class="radio-option selected" onclick="selectRadioOption(this, 'end')">
-                        <input type="radio" name="editSessionUnifiedMode" value="end" checked onchange="toggleEditSessionMode()">
+                    <label class="radio-option selected" data-action="selectRadioOption" data-action-self data-action-arg="end">
+                        <input type="radio" name="editSessionUnifiedMode" value="end" checked data-change-actions="toggleEditSessionMode">
                         <div class="radio-circle"></div>
                         <span>Modifica Fine</span>
                     </label>
-                    <label class="radio-option" onclick="selectRadioOption(this, 'split')">
-                        <input type="radio" name="editSessionUnifiedMode" value="split" onchange="toggleEditSessionMode()">
+                    <label class="radio-option" data-action="selectRadioOption" data-action-self data-action-arg="split">
+                        <input type="radio" name="editSessionUnifiedMode" value="split" data-change-actions="toggleEditSessionMode">
                         <div class="radio-circle"></div>
                         <span>Dividi Sessione</span>
                     </label>
@@ -780,40 +1382,40 @@
 
                 <!-- Sezione Fine (visibile per default) -->
                 <div id="editSessionUnifiedEndSection">
-                    <label style="color: #ffffff; font-weight: 600; margin-bottom: 10px; display: block;">Orario di Fine:</label>
+                    <label style="color: #E4DACB; font-weight: 600; margin-bottom: 10px; display: block;">Orario di Fine:</label>
                     <div style="display: flex; gap: 10px; margin-bottom: 20px; align-items: center;">
-                        <input type="date" id="editSessionUnifiedEndDate" style="flex: 2; padding: 10px; border: 1px solid #4a4a4a; border-radius: 6px; background: #1a1a1a; color: #ffffff;">
-                        <select id="editSessionUnifiedEndHour" style="flex: 1; padding: 10px; border: 1px solid #4a4a4a; border-radius: 6px; background: #1a1a1a; color: #ffffff;"></select>
-                        <span style="color: #999999; font-weight: bold;">:</span>
-                        <select id="editSessionUnifiedEndMinute" style="flex: 1; padding: 10px; border: 1px solid #4a4a4a; border-radius: 6px; background: #1a1a1a; color: #ffffff;"></select>
+                        <input type="date" id="editSessionUnifiedEndDate" style="flex: 2; padding: 10px; border: 1px solid #443A2E; border-radius: 6px; background: #1C1815; color: #E4DACB;">
+                        <select id="editSessionUnifiedEndHour" style="flex: 1; padding: 10px; border: 1px solid #443A2E; border-radius: 6px; background: #1C1815; color: #E4DACB;"></select>
+                        <span style="color: #9C9086; font-weight: bold;">:</span>
+                        <select id="editSessionUnifiedEndMinute" style="flex: 1; padding: 10px; border: 1px solid #443A2E; border-radius: 6px; background: #1C1815; color: #E4DACB;"></select>
                     </div>
-                    <p style="color: #999999; font-size: 0.9em; margin-bottom: 15px;">Nuova durata: <strong id="editSessionUnifiedNewDuration" style="color: #ff6b2b;">--</strong></p>
+                    <p style="color: #9C9086; font-size: 0.9em; margin-bottom: 15px;">Nuova durata: <strong id="editSessionUnifiedNewDuration" style="color: #C99A54;">--</strong></p>
                 </div>
 
                 <!-- Sezione Divisione (nascosta per default) -->
                 <div id="editSessionUnifiedSplitSection" style="display: none;">
-                    <label style="color: #ffffff; font-weight: 600; margin-bottom: 10px; display: block;">Punto di Divisione:</label>
+                    <label style="color: #E4DACB; font-weight: 600; margin-bottom: 10px; display: block;">Punto di Divisione:</label>
                     <div style="display: flex; gap: 10px; margin-bottom: 20px; align-items: center;">
-                        <input type="date" id="editSessionUnifiedSplitDate" style="flex: 2; padding: 10px; border: 1px solid #4a4a4a; border-radius: 6px; background: #1a1a1a; color: #ffffff;">
-                        <select id="editSessionUnifiedSplitHour" style="flex: 1; padding: 10px; border: 1px solid #4a4a4a; border-radius: 6px; background: #1a1a1a; color: #ffffff;"></select>
-                        <span style="color: #999999; font-weight: bold;">:</span>
-                        <select id="editSessionUnifiedSplitMinute" style="flex: 1; padding: 10px; border: 1px solid #4a4a4a; border-radius: 6px; background: #1a1a1a; color: #ffffff;"></select>
+                        <input type="date" id="editSessionUnifiedSplitDate" style="flex: 2; padding: 10px; border: 1px solid #443A2E; border-radius: 6px; background: #1C1815; color: #E4DACB;">
+                        <select id="editSessionUnifiedSplitHour" style="flex: 1; padding: 10px; border: 1px solid #443A2E; border-radius: 6px; background: #1C1815; color: #E4DACB;"></select>
+                        <span style="color: #9C9086; font-weight: bold;">:</span>
+                        <select id="editSessionUnifiedSplitMinute" style="flex: 1; padding: 10px; border: 1px solid #443A2E; border-radius: 6px; background: #1C1815; color: #E4DACB;"></select>
                     </div>
-                    <p style="color: #999999; font-size: 0.9em; margin-bottom: 15px;">
-                        Prima parte: <strong id="editSessionUnifiedFirstPartDuration" style="color: #ff6b2b;">--</strong> |
-                        Seconda parte: <strong id="editSessionUnifiedSecondPartDuration" style="color: #ff6b2b;">--</strong>
+                    <p style="color: #9C9086; font-size: 0.9em; margin-bottom: 15px;">
+                        Prima parte: <strong id="editSessionUnifiedFirstPartDuration" style="color: #C99A54;">--</strong> |
+                        Seconda parte: <strong id="editSessionUnifiedSecondPartDuration" style="color: #C99A54;">--</strong>
                     </p>
 
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
                         <div>
-                            <label style="color: #ffffff; font-weight: 600; margin-bottom: 10px; display: block;">Tipo prima parte:</label>
-                            <select id="editSessionUnifiedFirstType" style="width: 100%; padding: 10px; border: 1px solid #4a4a4a; border-radius: 6px; background: #1a1a1a; color: #ffffff;">
+                            <label style="color: #E4DACB; font-weight: 600; margin-bottom: 10px; display: block;">Tipo prima parte:</label>
+                            <select id="editSessionUnifiedFirstType" style="width: 100%; padding: 10px; border: 1px solid #443A2E; border-radius: 6px; background: #1C1815; color: #E4DACB;">
                                 <option value="">Nessuno</option>
                             </select>
                         </div>
                         <div>
-                            <label style="color: #ffffff; font-weight: 600; margin-bottom: 10px; display: block;">Tipo seconda parte:</label>
-                            <select id="editSessionUnifiedSecondType" style="width: 100%; padding: 10px; border: 1px solid #4a4a4a; border-radius: 6px; background: #1a1a1a; color: #ffffff;">
+                            <label style="color: #E4DACB; font-weight: 600; margin-bottom: 10px; display: block;">Tipo seconda parte:</label>
+                            <select id="editSessionUnifiedSecondType" style="width: 100%; padding: 10px; border: 1px solid #443A2E; border-radius: 6px; background: #1C1815; color: #E4DACB;">
                                 <option value="">Nessuno</option>
                             </select>
                         </div>
@@ -822,16 +1424,16 @@
 
                 <!-- Tipo attività (solo per modalità Fine) -->
                 <div id="editSessionUnifiedActivitySection">
-                    <label style="color: #ffffff; font-weight: 600; margin-bottom: 10px; display: block;">Tipo Attività:</label>
-                    <select id="editSessionUnifiedActivityType" style="width: 100%; padding: 10px; border: 1px solid #4a4a4a; border-radius: 6px; background: #1a1a1a; color: #ffffff;">
+                    <label style="color: #E4DACB; font-weight: 600; margin-bottom: 10px; display: block;">Tipo Attività:</label>
+                    <select id="editSessionUnifiedActivityType" style="width: 100%; padding: 10px; border: 1px solid #443A2E; border-radius: 6px; background: #1C1815; color: #E4DACB;">
                         <option value="">Nessuno</option>
                     </select>
                 </div>
             </div>
             <div class="modal-buttons">
-                <button class="btn" style="background: #ef4444;" onclick="deleteSessionFromUnified()">Elimina</button>
-                <button class="btn" style="background: #6b7280;" onclick="closeEditSessionUnifiedModal()">Annulla</button>
-                <button class="btn btn-success" onclick="confirmEditSessionUnified()">Salva Modifiche</button>
+                <button class="btn" style="background: #B1583F;" data-action="deleteSessionFromUnified">Elimina</button>
+                <button class="btn" style="background: #443A2E;" data-action="closeEditSessionUnifiedModal">Annulla</button>
+                <button class="btn btn-success" data-action="confirmEditSessionUnified">Salva Modifiche</button>
             </div>
         </div>
     </div>
@@ -841,25 +1443,24 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h2 id="confirmDeleteTitle">Conferma Eliminazione</h2>
-                <p style="color: #6b7280;" id="confirmDeleteMessage"></p>
+                <p style="color: #9C9086;" id="confirmDeleteMessage"></p>
             </div>
             <div class="modal-body">
                 <input type="hidden" id="confirmDeleteId">
                 <input type="hidden" id="confirmDeleteType">
-                <div style="background: #1a1a1a; padding: 15px; border-radius: 16px; border: 1px solid #ef4444;">
-                    <p style="margin: 0; color: #ef4444; text-align: center;">
-                        ⚠️ Questa azione è irreversibile
+                <div style="background: #1C1815; padding: 15px; border-radius: 10px; border: 1px solid #B1583F;">
+                    <p style="margin: 0; color: #B1583F; text-align: center;">
+                        Questa azione è irreversibile
                     </p>
                 </div>
             </div>
             <div class="modal-buttons">
-                <button class="btn" style="background: #6b7280;" onclick="closeConfirmDeleteModal()">Annulla</button>
-                <button class="btn" style="background: #ef4444;" onclick="confirmDelete()">Elimina</button>
+                <button class="btn" style="background: #443A2E;" data-action="closeConfirmDeleteModal">Annulla</button>
+                <button class="btn" style="background: #B1583F;" data-action="confirmDelete">Elimina</button>
             </div>
         </div>
     </div>
 
-    <script src="src/wailsjs/runtime/runtime.js"></script>
     <script src="src/app.js" type="module"></script>
 </body>
 </html>

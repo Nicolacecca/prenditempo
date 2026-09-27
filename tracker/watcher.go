@@ -8,122 +8,18 @@ import (
 	"unsafe"
 )
 
-const (
-	PROCESS_QUERY_INFORMATION = 0x0400
-	PROCESS_VM_READ           = 0x0010
-)
-
 var (
-	user32                       = syscall.NewLazyDLL("user32.dll")
-	procGetForegroundWin         = user32.NewProc("GetForegroundWindow")
-	procGetWindowText            = user32.NewProc("GetWindowTextW")
-	procGetWindowThreadProcessId = user32.NewProc("GetWindowThreadProcessId")
-	procGetLastInputInfo         = user32.NewProc("GetLastInputInfo")
+	user32               = syscall.NewLazyDLL("user32.dll")
+	procGetLastInputInfo = user32.NewProc("GetLastInputInfo")
 
-	kernel32            = syscall.NewLazyDLL("kernel32.dll")
-	procGetTickCount    = kernel32.NewProc("GetTickCount")
-
-	psapi                       = syscall.NewLazyDLL("psapi.dll")
-	procGetProcessImageFileName = psapi.NewProc("GetProcessImageFileNameW")
+	kernel32         = syscall.NewLazyDLL("kernel32.dll")
+	procGetTickCount = kernel32.NewProc("GetTickCount")
 )
 
 // LASTINPUTINFO struct per GetLastInputInfo
 type LASTINPUTINFO struct {
 	CbSize uint32
 	DwTime uint32
-}
-
-// GetActiveWindow ritorna il titolo della finestra attualmente attiva
-func GetActiveWindow() (string, error) {
-	// Ottieni handle della finestra attiva
-	hwnd, _, _ := procGetForegroundWin.Call()
-	if hwnd == 0 {
-		return "", fmt.Errorf("nessuna finestra attiva")
-	}
-
-	// Buffer per il titolo (max 256 caratteri)
-	buf := make([]uint16, 256)
-
-	// Ottieni il titolo della finestra
-	procGetWindowText.Call(
-		hwnd,
-		uintptr(unsafe.Pointer(&buf[0])),
-		uintptr(len(buf)),
-	)
-
-	// Converti da UTF-16 a string
-	title := syscall.UTF16ToString(buf)
-
-	if title == "" {
-		return "", fmt.Errorf("finestra senza titolo")
-	}
-
-	return title, nil
-}
-
-// GetActiveProcessName ritorna il nome del processo attivo
-func GetActiveProcessName() (string, error) {
-	// Ottieni handle della finestra attiva
-	hwnd, _, _ := procGetForegroundWin.Call()
-	if hwnd == 0 {
-		return "", fmt.Errorf("nessuna finestra attiva")
-	}
-
-	// Ottieni Process ID dalla finestra
-	var pid uint32
-	procGetWindowThreadProcessId.Call(hwnd, uintptr(unsafe.Pointer(&pid)))
-
-	if pid == 0 {
-		return "", fmt.Errorf("impossibile ottenere PID")
-	}
-
-	// Apri il processo
-	handle, err := syscall.OpenProcess(PROCESS_QUERY_INFORMATION|PROCESS_VM_READ, false, pid)
-	if err != nil {
-		return "", fmt.Errorf("impossibile aprire processo: %v", err)
-	}
-	defer syscall.CloseHandle(handle)
-
-	// Buffer per il path
-	buf := make([]uint16, 260)
-	size := uint32(len(buf))
-
-	// Ottieni il path completo dell'exe
-	ret, _, _ := procGetProcessImageFileName.Call(
-		uintptr(handle),
-		uintptr(unsafe.Pointer(&buf[0])),
-		uintptr(size),
-	)
-
-	if ret == 0 {
-		return "", fmt.Errorf("impossibile ottenere path processo")
-	}
-
-	// Converti il path
-	fullPath := syscall.UTF16ToString(buf)
-
-	// Estrai solo il nome del file (es. "Code.exe" da "C:\...\Code.exe")
-	processName := extractFileName(fullPath)
-
-	return processName, nil
-}
-
-// extractFileName estrae il nome del file dal path completo
-func extractFileName(path string) string {
-	// Trova l'ultima barra
-	lastSlash := -1
-	for i := len(path) - 1; i >= 0; i-- {
-		if path[i] == '\\' || path[i] == '/' {
-			lastSlash = i
-			break
-		}
-	}
-
-	if lastSlash == -1 {
-		return path
-	}
-
-	return path[lastSlash+1:]
 }
 
 // GetIdleTime restituisce da quanto tempo (in secondi) il PC è idle
@@ -156,13 +52,6 @@ type IdlePeriod struct {
 	Duration  int // secondi
 }
 
-// AppSession rappresenta una sessione di utilizzo di un'applicazione
-type AppSession struct {
-	AppName   string
-	StartTime time.Time
-	Duration  int // secondi
-}
-
 // SaveCallback è la funzione chiamata per salvare periodicamente i dati
 type SaveCallback func(totalSeconds int) error
 
@@ -174,35 +63,28 @@ type OnIdleReturnCallback func(minutes int)
 
 // TimeWatcher traccia il tempo delle applicazioni
 type TimeWatcher struct {
-	mu                   sync.Mutex     // mutex per proteggere accesso concorrente
-	appTimes             map[string]int // nome app -> secondi (per statistiche dettagliate)
-	sessions             []AppSession   // sessioni dettagliate con timestamp
-	currentApp           string         // app correntemente tracciata
-	currentStartTime     time.Time      // quando è iniziata la sessione corrente
-	stopChan             chan bool
+	mu                   sync.Mutex // mutex per proteggere accesso concorrente
+	stopChan             chan struct{}
 	running              bool
-	stopOnce             sync.Once   // previene doppia chiusura del canale
-	idleThreshold        int         // soglia idle in secondi (es. 300 = 5 minuti)
-	isIdle               bool        // stato idle corrente
-	idleStartTime        time.Time   // quando è iniziato l'idle corrente
-	pendingIdlePeriod    *IdlePeriod // periodo idle in attesa di attribuzione
-	trackingStartTime    time.Time   // quando è iniziato il tracking (per sessione unica)
-	totalActiveSeconds   int         // secondi totali attivi (escluso idle)
-	saveCallback         SaveCallback // callback per salvataggio periodico
-	saveInterval         int          // intervallo salvataggio in secondi (default 300 = 5 min)
-	lastSaveSeconds      int          // secondi all'ultimo salvataggio
-	onIdleCallback       OnIdleCallback // callback chiamata quando viene rilevato idle
+	countingEnabled      bool                 // il watcher può restare vivo solo per rilevare il rientro dall'idle
+	stopOnce             sync.Once            // previene doppia chiusura del canale
+	idleThreshold        int                  // soglia idle in secondi (es. 300 = 5 minuti)
+	isIdle               bool                 // stato idle corrente
+	idleStartTime        time.Time            // quando è iniziato l'idle corrente
+	pendingIdlePeriod    *IdlePeriod          // periodo idle in attesa di attribuzione
+	trackingStartTime    time.Time            // quando è iniziato il tracking (per sessione unica)
+	totalActiveSeconds   int                  // secondi totali attivi (escluso idle)
+	saveCallback         SaveCallback         // callback per salvataggio periodico
+	saveInterval         int                  // intervallo salvataggio in secondi (default 300 = 5 min)
+	lastSaveSeconds      int                  // secondi all'ultimo salvataggio
+	onIdleCallback       OnIdleCallback       // callback chiamata quando viene rilevato idle
 	onIdleReturnCallback OnIdleReturnCallback // callback chiamata quando l'utente torna dall'idle
 }
 
 // NewTimeWatcher crea un nuovo watcher
 func NewTimeWatcher() *TimeWatcher {
 	return &TimeWatcher{
-		appTimes:           make(map[string]int),
-		sessions:           []AppSession{},
-		currentApp:         "",
-		currentStartTime:   time.Time{},
-		stopChan:           make(chan bool),
+		stopChan:           make(chan struct{}),
 		running:            false,
 		idleThreshold:      300, // default: 5 minuti
 		isIdle:             false,
@@ -254,10 +136,12 @@ func (w *TimeWatcher) Start(intervalSeconds int) {
 	}
 
 	w.running = true
+	w.countingEnabled = true
 	w.trackingStartTime = time.Now() // Memorizza quando è iniziato il tracking
 	w.totalActiveSeconds = 0         // Reset contatore
 	w.lastSaveSeconds = 0            // Reset ultimo salvataggio
 	w.stopOnce = sync.Once{}         // Reset stopOnce per permettere nuove chiamate a Stop
+	w.stopChan = make(chan struct{}) // Un watcher riavviato usa un nuovo segnale di stop
 	saveInterval := w.saveInterval
 	saveCallback := w.saveCallback
 	w.mu.Unlock()
@@ -353,30 +237,23 @@ func (w *TimeWatcher) Start(intervalSeconds int) {
 					idleReturnCallback(idleMinutes)
 				}
 
-				// Sistema attivo: rileva app e traccia
-				processName, err := GetActiveProcessName()
-				if err != nil {
+				// Dopo l'auto-stop il watcher rimane attivo solo per intercettare
+				// il rientro dall'idle e non deve ricominciare a conteggiare.
+				w.mu.Lock()
+				countingEnabled := w.countingEnabled
+				w.mu.Unlock()
+				if !countingEnabled {
 					continue
 				}
 
+				// Sistema attivo: accumula tempo per la sessione corrente
 				w.mu.Lock()
-				// Accumula tempo totale attivo (per la sessione unica)
 				w.totalActiveSeconds += intervalSeconds
-
-				// Accumula tempo per app (per statistiche dettagliate)
-				w.appTimes[processName] += intervalSeconds
-
-				// Aggiorna app corrente (solo per info)
-				w.currentApp = processName
-
 				totalActive := w.totalActiveSeconds
 				lastSave := w.lastSaveSeconds
-				appTime := w.appTimes[processName]
 				w.mu.Unlock()
 
-				fmt.Printf("[TRACK] %s: %d sec | Totale sessione: %d sec (%d min)\n",
-					processName, appTime,
-					totalActive, totalActive/60)
+				fmt.Printf("[TRACK] Totale sessione: %d sec (%d min)\n", totalActive, totalActive/60)
 
 				// Salvataggio periodico (ogni saveInterval secondi)
 				if saveCallback != nil && (totalActive-lastSave) >= saveInterval {
@@ -405,39 +282,29 @@ func (w *TimeWatcher) Stop() {
 		return
 	}
 
-	// Crea una singola sessione con il tempo totale accumulato
 	if w.totalActiveSeconds > 0 {
-		w.sessions = []AppSession{
-			{
-				AppName:   "Sessione di lavoro", // Nome generico per la sessione unica
-				StartTime: w.trackingStartTime,
-				Duration:  w.totalActiveSeconds,
-			},
-		}
 		fmt.Printf("[TRACK] Sessione unica salvata: %d secondi (%d min) dal %s\n",
 			w.totalActiveSeconds, w.totalActiveSeconds/60,
 			w.trackingStartTime.Format("15:04:05"))
 	}
 
 	w.running = false
+	w.countingEnabled = false
 	w.mu.Unlock()
 
-	// Usa sync.Once per prevenire doppia chiusura/invio sul canale
+	// La chiusura del canale è non bloccante: Stop può quindi essere chiamato
+	// anche mentre la goroutine sta eseguendo una callback.
 	w.stopOnce.Do(func() {
-		w.stopChan <- true
+		close(w.stopChan)
 	})
 }
 
-// GetStats ritorna le statistiche
-func (w *TimeWatcher) GetStats() map[string]int {
+// PauseCounting interrompe conteggio e autosalvataggi lasciando vivo il watcher
+// per rilevare il rientro da un periodo di inattività.
+func (w *TimeWatcher) PauseCounting() {
 	w.mu.Lock()
 	defer w.mu.Unlock()
-	// Crea una copia per evitare race condition
-	result := make(map[string]int, len(w.appTimes))
-	for k, v := range w.appTimes {
-		result[k] = v
-	}
-	return result
+	w.countingEnabled = false
 }
 
 // GetPendingIdlePeriod restituisce il periodo idle in attesa di attribuzione
@@ -454,33 +321,9 @@ func (w *TimeWatcher) ClearPendingIdlePeriod() {
 	w.pendingIdlePeriod = nil
 }
 
-// HasPendingIdlePeriod verifica se c'è un periodo idle in attesa
-func (w *TimeWatcher) HasPendingIdlePeriod() bool {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-	return w.pendingIdlePeriod != nil
-}
-
-// GetSessions restituisce le sessioni dettagliate con timestamp
-func (w *TimeWatcher) GetSessions() []AppSession {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-	// Crea una copia per evitare race condition
-	result := make([]AppSession, len(w.sessions))
-	copy(result, w.sessions)
-	return result
-}
-
 // GetTotalActiveSeconds restituisce i secondi totali attivi
 func (w *TimeWatcher) GetTotalActiveSeconds() int {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	return w.totalActiveSeconds
-}
-
-// GetTrackingStartTime restituisce quando è iniziato il tracking
-func (w *TimeWatcher) GetTrackingStartTime() time.Time {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-	return w.trackingStartTime
 }

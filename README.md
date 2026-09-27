@@ -7,10 +7,10 @@ App desktop nativa per Windows per il tracciamento del tempo lavorativo, svilupp
 - **Tracciamento tempo** - Avvia e ferma il tracciamento con un click, selezionando progetto e tipo di attività
 - **Timeline visuale** - Visualizza le sessioni di lavoro su una timeline interattiva con marker temporali
 - **Tipi di attività** - Crea tipi di attività personalizzati con colori e pattern diversi (solido, strisce, puntini)
-- **Note Markdown** - Ogni progetto ha una nota in formato Markdown con anteprima live
+- **Lavagna per progetto** - Canvas infinito desktop-first con ribbon originale a schede, raccolta forme, testo, note, tabelle, immagini, video esterni, cartelle e siti Internet, frecce collegate, pannello oggetti/livelli, minimappa, cestino, versioni recuperabili, esportazione PNG/PDF, pan, zoom, undo/redo e autosalvataggio
 - **Archiviazione progetti** - Chiudi e archivia progetti completati con report finale
 - **Report** - Genera report dettagliati con statistiche su tempo totale, sessioni e attività
-- **Esportazione JSON** - Esporta progetti in formato JSON per backup o reimportazione futura
+- **Esportazione JSON** - Esporta progetti, lavagne, immagini e versioni in un backup JSON verificato e reimportabile
 - **Stampa PDF** - Stampa i report direttamente in PDF
 - **Rilevamento inattività** - Rileva i periodi di inattività e permette di attribuire il tempo al progetto corretto
 - **Avvio automatico** - Opzione per avviare l'app automaticamente con Windows
@@ -36,7 +36,7 @@ App desktop nativa per Windows per il tracciamento del tempo lavorativo, svilupp
 
 **IMPORTANTE**: Prima di installare una nuova versione, fai sempre un backup del database:
 
-1. Copia il file `%APPDATA%\PrendiTempo\prenditempo.db`
+1. Copia il file `%APPDATA%\PrendiTempo\timetracker.db`
 2. Salva la copia in un luogo sicuro
 3. Procedi con l'aggiornamento
 
@@ -45,7 +45,7 @@ Il database contiene tutti i tuoi progetti, sessioni e note.
 ## Compilazione da sorgente
 
 ### Requisiti di sviluppo
-- Go 1.21+
+- Go 1.25+
 - Node.js 18+
 - Wails CLI v2
 
@@ -60,7 +60,7 @@ git clone https://github.com/Nicolacecca/prenditempo.git
 cd prenditempo
 
 # Compila l'applicazione
-wails build -tags wails
+wails build
 ```
 
 L'eseguibile sarà disponibile in `build/bin/PrendiTempo.exe`
@@ -68,7 +68,7 @@ L'eseguibile sarà disponibile in `build/bin/PrendiTempo.exe`
 ### Modalità sviluppo
 
 ```bash
-wails dev -tags wails
+wails dev
 ```
 
 ## Tecnologie utilizzate
@@ -78,6 +78,11 @@ wails dev -tags wails
 - **Framework desktop**: [Wails v2](https://wails.io/)
 - **Database**: SQLite
 - **UI Theme**: Dark mode con accenti arancioni
+- **Canvas**: Fabric.js
+
+## Sviluppi pianificati
+
+- **Lavagna infinita avanzata** - Ulteriori miglioramenti di prestazioni, accessibilità e strumenti grafici. La specifica tecnica è descritta in [docs/INFINITE_WHITEBOARD.md](docs/INFINITE_WHITEBOARD.md).
 
 ## Struttura del progetto
 

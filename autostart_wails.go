@@ -1,4 +1,4 @@
-//go:build wails
+//go:build windows
 
 package main
 
@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 
 	"golang.org/x/sys/windows/registry"
 )
@@ -123,14 +124,18 @@ func (a *App) IsAutoStartEnabled() bool {
 		return false
 	}
 
-	// Verifica che il percorso registrato corrisponda all'eseguibile corrente
-	exePath, _ := os.Executable()
+	// Verifica che il percorso registrato corrisponda davvero all'eseguibile corrente.
+	exePath, err := getResolvedExePath()
+	if err != nil {
+		log.Printf("[AUTOSTART] Impossibile risolvere il percorso corrente: %v", err)
+		return false
+	}
 	expectedValue := fmt.Sprintf("\"%s\"", exePath)
 
 	log.Printf("[AUTOSTART] Valore nel registro: %s", value)
 	log.Printf("[AUTOSTART] Percorso atteso: %s", expectedValue)
 
-	return true
+	return strings.EqualFold(value, expectedValue)
 }
 
 // GetAutoStartInfo restituisce informazioni di debug sull'autostart

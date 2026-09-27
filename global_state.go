@@ -42,15 +42,18 @@ func InitGlobalState(db *sql.DB) {
 }
 
 // SetGlobalIdleThreshold imposta la soglia di inattività e la salva nel database
-func SetGlobalIdleThreshold(minutes int) {
+func SetGlobalIdleThreshold(minutes int) error {
 	globalStateMu.Lock()
 	defer globalStateMu.Unlock()
-	globalIdleThreshold = minutes
 
 	// Salva nel database per persistenza
 	if globalDB != nil {
-		tracker.SetSetting(globalDB, "idle_threshold", strconv.Itoa(minutes))
+		if err := tracker.SetSetting(globalDB, "idle_threshold", strconv.Itoa(minutes)); err != nil {
+			return err
+		}
 	}
+	globalIdleThreshold = minutes
+	return nil
 }
 
 // GetGlobalIdleThreshold ritorna la soglia di inattività

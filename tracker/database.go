@@ -26,10 +26,24 @@ func InitDB(filepath string) (*sql.DB, error) {
 	if err != nil {
 		return nil, fmt.Errorf("errore apertura database: %v", err)
 	}
+	// Le PRAGMA sono specifiche della connessione. Una sola connessione è
+	// sufficiente per questa app desktop e garantisce che siano sempre attive.
+	db.SetMaxOpenConns(1)
 
 	// Verifica che la connessione funzioni
 	if err := db.Ping(); err != nil {
+		db.Close()
 		return nil, fmt.Errorf("errore connessione database: %v", err)
+	}
+	for _, pragma := range []string{
+		"PRAGMA foreign_keys = ON",
+		"PRAGMA busy_timeout = 5000",
+		"PRAGMA journal_mode = WAL",
+	} {
+		if _, err := db.Exec(pragma); err != nil {
+			db.Close()
+			return nil, fmt.Errorf("errore configurazione database (%s): %v", pragma, err)
+		}
 	}
 
 	// Crea la tabella se non esiste
@@ -64,20 +78,22 @@ func InitDB(filepath string) (*sql.DB, error) {
 	// Migrazione: aggiungi colonne archived e closed_at se non esistono
 	// Ignoriamo errori "duplicate column" che indicano che la colonna esiste già
 	if _, err := db.Exec(`ALTER TABLE projects ADD COLUMN archived INTEGER DEFAULT 0;`); err != nil {
-		// Log solo se non è un errore "duplicate column"
 		if !isDuplicateColumnError(err) {
-			fmt.Printf("[DB] Avviso migrazione projects.archived: %v\n", err)
+			db.Close()
+			return nil, fmt.Errorf("errore migrazione projects.archived: %v", err)
 		}
 	}
 	if _, err := db.Exec(`ALTER TABLE projects ADD COLUMN closed_at DATETIME;`); err != nil {
 		if !isDuplicateColumnError(err) {
-			fmt.Printf("[DB] Avviso migrazione projects.closed_at: %v\n", err)
+			db.Close()
+			return nil, fmt.Errorf("errore migrazione projects.closed_at: %v", err)
 		}
 	}
 	// Migrazione: aggiungi colonna note_text per nota markdown del progetto
 	if _, err := db.Exec(`ALTER TABLE projects ADD COLUMN note_text TEXT DEFAULT '';`); err != nil {
 		if !isDuplicateColumnError(err) {
-			fmt.Printf("[DB] Avviso migrazione projects.note_text: %v\n", err)
+			db.Close()
+			return nil, fmt.Errorf("errore migrazione projects.note_text: %v", err)
 		}
 	}
 
@@ -101,7 +117,8 @@ func InitDB(filepath string) (*sql.DB, error) {
 	// Migrazione: aggiungi colonna activity_type se non esiste
 	if _, err := db.Exec(`ALTER TABLE sessions ADD COLUMN activity_type TEXT DEFAULT NULL;`); err != nil {
 		if !isDuplicateColumnError(err) {
-			fmt.Printf("[DB] Avviso migrazione sessions.activity_type: %v\n", err)
+			db.Close()
+			return nil, fmt.Errorf("errore migrazione sessions.activity_type: %v", err)
 		}
 	}
 
@@ -117,6 +134,58 @@ func InitDB(filepath string) (*sql.DB, error) {
 
 	if _, err := db.Exec(createNotesSQL); err != nil {
 		return nil, fmt.Errorf("errore creazione tabella notes: %v", err)
+	}
+
+	createProjectBoardsSQL := `
+	CREATE TABLE IF NOT EXISTS project_boards (
+		project_id INTEGER PRIMARY KEY,
+		schema_version INTEGER NOT NULL DEFAULT 1,
+		document_json TEXT NOT NULL DEFAULT '{}',
+		viewport_json TEXT NOT NULL DEFAULT '{}',
+		legacy_note_imported INTEGER NOT NULL DEFAULT 0,
+		updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+	);`
+
+	if _, err := db.Exec(createProjectBoardsSQL); err != nil {
+		return nil, fmt.Errorf("errore creazione tabella project_boards: %v", err)
+	}
+
+	createBoardAssetsSQL := `
+	CREATE TABLE IF NOT EXISTS board_assets (
+		id TEXT PRIMARY KEY,
+		project_id INTEGER NOT NULL,
+		file_name TEXT NOT NULL,
+		mime_type TEXT NOT NULL,
+		data BLOB NOT NULL,
+		size INTEGER NOT NULL,
+		sha256 TEXT NOT NULL,
+		created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
+		UNIQUE (project_id, sha256)
+	);`
+
+	if _, err := db.Exec(createBoardAssetsSQL); err != nil {
+		return nil, fmt.Errorf("errore creazione tabella board_assets: %v", err)
+	}
+
+	createBoardVersionsSQL := `
+	CREATE TABLE IF NOT EXISTS board_versions (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		project_id INTEGER NOT NULL,
+		name TEXT NOT NULL,
+		is_automatic INTEGER NOT NULL DEFAULT 0,
+		document_json TEXT NOT NULL,
+		viewport_json TEXT NOT NULL,
+		created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+	);`
+
+	if _, err := db.Exec(createBoardVersionsSQL); err != nil {
+		return nil, fmt.Errorf("errore creazione tabella board_versions: %v", err)
+	}
+	if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS idx_board_versions_project_date ON board_versions(project_id, created_at DESC, id DESC)`); err != nil {
+		return nil, fmt.Errorf("errore creazione indice board_versions: %v", err)
 	}
 
 	// Crea tabella activity_types per i tipi di attività configurabili
@@ -136,13 +205,16 @@ func InitDB(filepath string) (*sql.DB, error) {
 	// Migrazione: aggiungi colonna pattern se non esiste
 	if _, err := db.Exec(`ALTER TABLE activity_types ADD COLUMN pattern TEXT DEFAULT 'solid';`); err != nil {
 		if !isDuplicateColumnError(err) {
-			fmt.Printf("[DB] Avviso migrazione activity_types.pattern: %v\n", err)
+			db.Close()
+			return nil, fmt.Errorf("errore migrazione activity_types.pattern: %v", err)
 		}
 	}
 
 	// Inserisci tipi di attività di default se la tabella è vuota
 	var count int
-	db.QueryRow("SELECT COUNT(*) FROM activity_types").Scan(&count)
+	if err := db.QueryRow("SELECT COUNT(*) FROM activity_types").Scan(&count); err != nil {
+		return nil, fmt.Errorf("errore conteggio tipi attività: %v", err)
+	}
 	if count == 0 {
 		defaultTypes := []struct {
 			name         string
@@ -156,8 +228,10 @@ func InitDB(filepath string) (*sql.DB, error) {
 		}
 
 		for _, t := range defaultTypes {
-			db.Exec("INSERT INTO activity_types (name, color_variant, pattern, display_order) VALUES (?, ?, ?, ?)",
-				t.name, t.colorVariant, t.pattern, t.order)
+			if _, err := db.Exec("INSERT INTO activity_types (name, color_variant, pattern, display_order) VALUES (?, ?, ?, ?)",
+				t.name, t.colorVariant, t.pattern, t.order); err != nil {
+				return nil, fmt.Errorf("errore inserimento tipo attività predefinito: %v", err)
+			}
 		}
 		fmt.Println("[DB] Tipi di attività predefiniti inseriti")
 	}
@@ -174,14 +248,38 @@ func InitDB(filepath string) (*sql.DB, error) {
 	}
 
 	// Inserisci impostazioni di default se non esistono
-	db.Exec("INSERT OR IGNORE INTO settings (key, value) VALUES ('auto_start', 'false')")
+	if _, err := db.Exec("INSERT OR IGNORE INTO settings (key, value) VALUES ('auto_start', 'false')"); err != nil {
+		return nil, fmt.Errorf("errore impostazioni predefinite: %v", err)
+	}
 
 	// Crea indici per migliorare le performance delle query
-	db.Exec(`CREATE INDEX IF NOT EXISTS idx_sessions_timestamp ON sessions(timestamp)`)
-	db.Exec(`CREATE INDEX IF NOT EXISTS idx_sessions_project_id ON sessions(project_id)`)
-	db.Exec(`CREATE INDEX IF NOT EXISTS idx_sessions_app_name ON sessions(app_name)`)
-	db.Exec(`CREATE INDEX IF NOT EXISTS idx_notes_project_id ON notes(project_id)`)
-	db.Exec(`CREATE INDEX IF NOT EXISTS idx_notes_timestamp ON notes(timestamp)`)
+	for _, statement := range []string{
+		`CREATE INDEX IF NOT EXISTS idx_sessions_timestamp ON sessions(timestamp)`,
+		`CREATE INDEX IF NOT EXISTS idx_sessions_project_id ON sessions(project_id)`,
+		`CREATE INDEX IF NOT EXISTS idx_sessions_app_name ON sessions(app_name)`,
+		`CREATE INDEX IF NOT EXISTS idx_notes_project_id ON notes(project_id)`,
+		`CREATE INDEX IF NOT EXISTS idx_notes_timestamp ON notes(timestamp)`,
+	} {
+		if _, err := db.Exec(statement); err != nil {
+			return nil, fmt.Errorf("errore creazione indice: %v", err)
+		}
+	}
+
+	// Crea tabella day_events per feste, ferie e permessi
+	createDayEventsSQL := `
+	CREATE TABLE IF NOT EXISTS day_events (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		date TEXT NOT NULL UNIQUE,
+		event_type TEXT NOT NULL,
+		hours REAL DEFAULT 0,
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+	);`
+	if _, err := db.Exec(createDayEventsSQL); err != nil {
+		return nil, fmt.Errorf("errore creazione tabella day_events: %v", err)
+	}
+	if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS idx_day_events_date ON day_events(date)`); err != nil {
+		return nil, fmt.Errorf("errore indice eventi: %v", err)
+	}
 
 	// Crea tabella pending_tracking per tracciare sessioni in corso (auto-save)
 	createPendingTrackingSQL := `
@@ -201,31 +299,47 @@ func InitDB(filepath string) (*sql.DB, error) {
 		return nil, fmt.Errorf("errore creazione tabella pending_tracking: %v", err)
 	}
 
+	// I trigger su day_events vengono ricreati ad ogni avvio (drop + create) per
+	// permettere di aggiornare l'elenco di event_type ammessi (es. aggiunta di
+	// 'malattia') anche sui database esistenti: "CREATE TRIGGER IF NOT EXISTS"
+	// da solo non aggiornerebbe mai un trigger già presente.
+	for _, statement := range []string{
+		`DROP TRIGGER IF EXISTS validate_day_events_insert`,
+		`DROP TRIGGER IF EXISTS validate_day_events_update`,
+	} {
+		if _, err := db.Exec(statement); err != nil {
+			db.Close()
+			return nil, fmt.Errorf("errore aggiornamento vincoli database: %v", err)
+		}
+	}
+
+	// Le API applicative validano i dati; i trigger proteggono anche scritture
+	// dirette o future migrazioni che potrebbero aggirare tali API.
+	for _, statement := range []string{
+		`CREATE TRIGGER IF NOT EXISTS validate_sessions_insert BEFORE INSERT ON sessions
+		 WHEN NEW.seconds < 0 OR trim(NEW.app_name) = '' OR NEW.session_type NOT IN ('computer','off-computer','manual')
+		 BEGIN SELECT RAISE(ABORT, 'sessione non valida'); END`,
+		`CREATE TRIGGER IF NOT EXISTS validate_sessions_update BEFORE UPDATE ON sessions
+		 WHEN NEW.seconds < 0 OR trim(NEW.app_name) = '' OR NEW.session_type NOT IN ('computer','off-computer','manual')
+		 BEGIN SELECT RAISE(ABORT, 'sessione non valida'); END`,
+		`CREATE TRIGGER validate_day_events_insert BEFORE INSERT ON day_events
+		 WHEN NEW.event_type NOT IN ('holiday','vacation','permesso','malattia','trasferta') OR NEW.hours < 0 OR NEW.hours > 24
+		   OR (NEW.event_type != 'permesso' AND NEW.hours != 0)
+		 BEGIN SELECT RAISE(ABORT, 'evento non valido'); END`,
+		`CREATE TRIGGER validate_day_events_update BEFORE UPDATE ON day_events
+		 WHEN NEW.event_type NOT IN ('holiday','vacation','permesso','malattia','trasferta') OR NEW.hours < 0 OR NEW.hours > 24
+		   OR (NEW.event_type != 'permesso' AND NEW.hours != 0)
+		 BEGIN SELECT RAISE(ABORT, 'evento non valido'); END`,
+	} {
+		if _, err := db.Exec(statement); err != nil {
+			db.Close()
+			return nil, fmt.Errorf("errore creazione vincoli database: %v", err)
+		}
+	}
+
 	fmt.Println("[DB] Database inizializzato con successo")
 	return db, nil
 
-}
-
-// GetDefaultActivityType restituisce il primo tipo di attività secondo l'ordine gerarchico
-func GetDefaultActivityType(db *sql.DB) *string {
-	query := `SELECT name FROM activity_types ORDER BY display_order ASC LIMIT 1`
-
-	var name string
-	err := db.QueryRow(query).Scan(&name)
-	if err != nil {
-		// Se non ci sono tipi di attività, ritorna nil
-		return nil
-	}
-
-	return &name
-}
-
-// SalvaSessione salva una sessione di tracking
-// Assegna automaticamente il primo tipo di attività disponibile
-func SalvaSessione(db *sql.DB, appName string, seconds int, projectID *int) error {
-	// Ottieni il primo tipo di attività (ordine gerarchico)
-	defaultActivityType := GetDefaultActivityType(db)
-	return SalvaSessioneConTipo(db, appName, seconds, projectID, "computer", defaultActivityType, "")
 }
 
 // SalvaSessioneConTipo salva una sessione specificando il tipo, activity_type e timestamp opzionale
@@ -249,148 +363,6 @@ func SalvaSessioneConTipo(db *sql.DB, appName string, seconds int, projectID *in
 	}
 
 	return nil
-}
-
-// SalvaStatistiche salva tutte le statistiche del watcher
-func SalvaStatistiche(db *sql.DB, stats map[string]int, projectID *int) error {
-	fmt.Println("[DB] Salvataggio statistiche...")
-
-	for appName, seconds := range stats {
-		if err := SalvaSessione(db, appName, seconds, projectID); err != nil {
-			return err
-		}
-		fmt.Printf("[DB] Salvata sessione: %s -> %d secondi\n", appName, seconds)
-	}
-
-	return nil
-}
-
-// CaricaSessioniOggi carica le sessioni di oggi
-func CaricaSessioniOggi(db *sql.DB) (map[string]int, error) {
-	query := `
-	SELECT app_name, SUM(seconds) as total
-	FROM sessions
-	WHERE DATE(timestamp) = DATE('now')
-	GROUP BY app_name
-	`
-
-	rows, err := db.Query(query)
-	if err != nil {
-		return nil, fmt.Errorf("errore query sessioni: %v", err)
-	}
-	defer rows.Close()
-
-	stats := make(map[string]int)
-	for rows.Next() {
-		var appName string
-		var total int
-		if err := rows.Scan(&appName, &total); err != nil {
-			return nil, err
-		}
-		stats[appName] = total
-	}
-
-	return stats, nil
-}
-
-// CaricaSessioniSettimana carica le sessioni della settimana corrente
-func CaricaSessioniSettimana(db *sql.DB) (map[string]int, error) {
-	query := `
-	SELECT app_name, SUM(seconds) as total
-	FROM sessions
-	WHERE DATE(timestamp) >= DATE('now', 'weekday 0', '-7 days')
-	GROUP BY app_name
-	`
-
-	rows, err := db.Query(query)
-	if err != nil {
-		return nil, fmt.Errorf("errore query sessioni settimana: %v", err)
-	}
-	defer rows.Close()
-
-	stats := make(map[string]int)
-	for rows.Next() {
-		var appName string
-		var total int
-		if err := rows.Scan(&appName, &total); err != nil {
-			return nil, err
-		}
-		stats[appName] = total
-	}
-
-	return stats, nil
-}
-
-// CaricaSessioniMese carica le sessioni del mese corrente
-func CaricaSessioniMese(db *sql.DB) (map[string]int, error) {
-	query := `
-	SELECT app_name, SUM(seconds) as total
-	FROM sessions
-	WHERE strftime('%Y-%m', timestamp) = strftime('%Y-%m', 'now')
-	GROUP BY app_name
-	`
-
-	rows, err := db.Query(query)
-	if err != nil {
-		return nil, fmt.Errorf("errore query sessioni mese: %v", err)
-	}
-	defer rows.Close()
-
-	stats := make(map[string]int)
-	for rows.Next() {
-		var appName string
-		var total int
-		if err := rows.Scan(&appName, &total); err != nil {
-			return nil, err
-		}
-		stats[appName] = total
-	}
-
-	return stats, nil
-}
-
-// CaricaTopApp carica le top N app più usate di oggi
-func CaricaTopApp(db *sql.DB, limit int) ([]struct {
-	Nome    string
-	Secondi int
-}, error) {
-	query := `
-	SELECT app_name, SUM(seconds) as total
-	FROM sessions
-	WHERE DATE(timestamp) = DATE('now')
-	GROUP BY app_name
-	ORDER BY total DESC
-	LIMIT ?
-	`
-
-	rows, err := db.Query(query, limit)
-	if err != nil {
-		return nil, fmt.Errorf("errore query top app: %v", err)
-	}
-	defer rows.Close()
-
-	type AppStat struct {
-		Nome    string
-		Secondi int
-	}
-
-	var topApps []struct {
-		Nome    string
-		Secondi int
-	}
-
-	for rows.Next() {
-		var app struct {
-			Nome    string
-			Secondi int
-		}
-		if err := rows.Scan(&app.Nome, &app.Secondi); err != nil {
-			return nil, err
-		}
-		topApps = append(topApps, app)
-	}
-
-	return topApps, nil
 }
 
 // === FUNZIONI PER PROGETTI ===
@@ -687,16 +659,27 @@ func EliminaProgetto(db *sql.DB, name string) error {
 
 // EliminaProgettoById elimina un progetto e tutti i dati associati dato l'ID
 func EliminaProgettoById(db *sql.DB, projectID int) error {
+	tx, err := db.Begin()
+	if err != nil {
+		return fmt.Errorf("errore avvio eliminazione progetto: %v", err)
+	}
+	defer tx.Rollback()
+
 	// Recupera il nome del progetto per il log
 	var projectName string
-	err := db.QueryRow("SELECT name FROM projects WHERE id = ?", projectID).Scan(&projectName)
+	err = tx.QueryRow("SELECT name FROM projects WHERE id = ?", projectID).Scan(&projectName)
 	if err != nil {
 		return fmt.Errorf("progetto non trovato: %v", err)
 	}
 
+	// Rimuovi prima eventuali riferimenti di tracking pendente.
+	if _, err := tx.Exec("DELETE FROM pending_tracking WHERE project_id = ?", projectID); err != nil {
+		return fmt.Errorf("errore eliminazione tracking pendente: %v", err)
+	}
+
 	// Elimina tutte le note associate al progetto
 	deleteNotesSQL := `DELETE FROM notes WHERE project_id = ?`
-	result, err := db.Exec(deleteNotesSQL, projectID)
+	result, err := tx.Exec(deleteNotesSQL, projectID)
 	if err != nil {
 		return fmt.Errorf("errore eliminazione note del progetto: %v", err)
 	}
@@ -704,7 +687,7 @@ func EliminaProgettoById(db *sql.DB, projectID int) error {
 
 	// Elimina tutte le sessioni associate al progetto
 	deleteSessionsSQL := `DELETE FROM sessions WHERE project_id = ?`
-	result, err = db.Exec(deleteSessionsSQL, projectID)
+	result, err = tx.Exec(deleteSessionsSQL, projectID)
 	if err != nil {
 		return fmt.Errorf("errore eliminazione sessioni del progetto: %v", err)
 	}
@@ -712,41 +695,19 @@ func EliminaProgettoById(db *sql.DB, projectID int) error {
 
 	// Infine, elimina il progetto stesso
 	deleteProjectSQL := `DELETE FROM projects WHERE id = ?`
-	result, err = db.Exec(deleteProjectSQL, projectID)
+	result, err = tx.Exec(deleteProjectSQL, projectID)
 	if err != nil {
 		return fmt.Errorf("errore eliminazione progetto: %v", err)
+	}
+	if affected, _ := result.RowsAffected(); affected != 1 {
+		return fmt.Errorf("progetto %d non trovato", projectID)
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("errore conferma eliminazione progetto: %v", err)
 	}
 
 	fmt.Printf("[DB] Progetto eliminato: %s (ID: %d, sessioni: %d, note: %d)\n", projectName, projectID, sessionsDeleted, notesDeleted)
 	return nil
-}
-
-// CaricaSessioniProgetto carica tutte le sessioni per un progetto specifico
-func CaricaSessioniProgetto(db *sql.DB, projectID int) (map[string]int, error) {
-	query := `
-	SELECT app_name, SUM(seconds) as total
-	FROM sessions
-	WHERE project_id = ?
-	GROUP BY app_name
-	`
-
-	rows, err := db.Query(query, projectID)
-	if err != nil {
-		return nil, fmt.Errorf("errore query sessioni progetto: %v", err)
-	}
-	defer rows.Close()
-
-	stats := make(map[string]int)
-	for rows.Next() {
-		var appName string
-		var total int
-		if err := rows.Scan(&appName, &total); err != nil {
-			return nil, err
-		}
-		stats[appName] = total
-	}
-
-	return stats, nil
 }
 
 // SessionDetail rappresenta una sessione dettagliata con timestamp
@@ -787,6 +748,43 @@ func CaricaSessioniDettagliate(db *sql.DB, startDate, endDate string) ([]Session
 	rows, err := db.Query(query, startDateTime, endDateTime)
 	if err != nil {
 		return nil, fmt.Errorf("errore query sessioni dettagliate: %v", err)
+	}
+	defer rows.Close()
+
+	var sessions []SessionDetail
+	for rows.Next() {
+		var s SessionDetail
+		if err := rows.Scan(&s.ID, &s.AppName, &s.Seconds, &s.ProjectID, &s.ProjectName, &s.SessionType, &s.ActivityType, &s.Timestamp); err != nil {
+			return nil, err
+		}
+		sessions = append(sessions, s)
+	}
+
+	return sessions, nil
+}
+
+// CaricaSessioniDettagliatePerProgetto carica le sessioni dettagliate di un singolo
+// progetto, filtrando lato SQL invece di caricare l'intero storico in memoria.
+func CaricaSessioniDettagliatePerProgetto(db *sql.DB, projectID int) ([]SessionDetail, error) {
+	query := `
+	SELECT
+		s.id,
+		s.app_name,
+		s.seconds,
+		s.project_id,
+		COALESCE(p.name, 'Nessun progetto') as project_name,
+		COALESCE(s.session_type, 'computer') as session_type,
+		s.activity_type,
+		s.timestamp
+	FROM sessions s
+	LEFT JOIN projects p ON s.project_id = p.id
+	WHERE s.project_id = ?
+	ORDER BY s.timestamp ASC
+	`
+
+	rows, err := db.Query(query, projectID)
+	if err != nil {
+		return nil, fmt.Errorf("errore query sessioni progetto: %v", err)
 	}
 	defer rows.Close()
 
@@ -1005,6 +1003,15 @@ func CaricaSessioneById(db *sql.DB, sessionID int) (*SessionDetail, error) {
 
 // DividiSessione divide una sessione in due parti
 func DividiSessione(db *sql.DB, sessionID int, secondiPrimaParte int, activityTypePrimaParte *string, activityTypeSecondaParte *string) error {
+	if secondiPrimaParte <= 0 {
+		return fmt.Errorf("la prima parte deve avere durata positiva")
+	}
+	tx, err := db.Begin()
+	if err != nil {
+		return fmt.Errorf("errore avvio transazione divisione: %v", err)
+	}
+	defer tx.Rollback()
+
 	// Prima carica la sessione originale
 	var appName, sessionType, timestamp string
 	var seconds int
@@ -1012,7 +1019,7 @@ func DividiSessione(db *sql.DB, sessionID int, secondiPrimaParte int, activityTy
 	var activityType *string
 
 	query := `SELECT app_name, seconds, project_id, session_type, activity_type, timestamp FROM sessions WHERE id = ?`
-	err := db.QueryRow(query, sessionID).Scan(&appName, &seconds, &projectID, &sessionType, &activityType, &timestamp)
+	err = tx.QueryRow(query, sessionID).Scan(&appName, &seconds, &projectID, &sessionType, &activityType, &timestamp)
 	if err != nil {
 		return fmt.Errorf("errore caricamento sessione: %v", err)
 	}
@@ -1025,7 +1032,7 @@ func DividiSessione(db *sql.DB, sessionID int, secondiPrimaParte int, activityTy
 
 	// Aggiorna la sessione originale con la prima parte
 	updateSQL := `UPDATE sessions SET seconds = ?, activity_type = ? WHERE id = ?`
-	_, err = db.Exec(updateSQL, secondiPrimaParte, activityTypePrimaParte, sessionID)
+	_, err = tx.Exec(updateSQL, secondiPrimaParte, activityTypePrimaParte, sessionID)
 	if err != nil {
 		return fmt.Errorf("errore aggiornamento prima parte: %v", err)
 	}
@@ -1041,11 +1048,14 @@ func DividiSessione(db *sql.DB, sessionID int, secondiPrimaParte int, activityTy
 
 	// Crea una nuova sessione per la seconda parte
 	insertSQL := `INSERT INTO sessions (app_name, seconds, project_id, session_type, activity_type, timestamp) VALUES (?, ?, ?, ?, ?, ?)`
-	_, err = db.Exec(insertSQL, appName, secondiSecondaParte, projectID, sessionType, activityTypeSecondaParte, timestampSecondaParteStr)
+	_, err = tx.Exec(insertSQL, appName, secondiSecondaParte, projectID, sessionType, activityTypeSecondaParte, timestampSecondaParteStr)
 	if err != nil {
 		return fmt.Errorf("errore creazione seconda parte: %v", err)
 	}
 
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("errore conferma divisione sessione: %v", err)
+	}
 	fmt.Printf("[DB] Sessione ID %d divisa in due parti: %d sec e %d sec\n", sessionID, secondiPrimaParte, secondiSecondaParte)
 	return nil
 }
@@ -1248,9 +1258,22 @@ type PendingTracking struct {
 
 // StartPendingTracking crea una nuova sessione e registra il tracking pendente
 func StartPendingTracking(db *sql.DB, projectID *int, activityType *string, startTime string) (int64, error) {
+	tx, err := db.Begin()
+	if err != nil {
+		return 0, fmt.Errorf("errore avvio transazione tracking: %v", err)
+	}
+	defer tx.Rollback()
+	var pendingCount int
+	if err := tx.QueryRow("SELECT COUNT(*) FROM pending_tracking").Scan(&pendingCount); err != nil {
+		return 0, fmt.Errorf("errore verifica tracking pendenti: %v", err)
+	}
+	if pendingCount > 0 {
+		return 0, fmt.Errorf("esiste già un tracking pendente")
+	}
+
 	// Crea la sessione con 0 secondi (verrà aggiornata periodicamente)
 	insertSessionSQL := `INSERT INTO sessions (app_name, seconds, project_id, session_type, activity_type, timestamp) VALUES (?, ?, ?, ?, ?, ?)`
-	result, err := db.Exec(insertSessionSQL, "Sessione di lavoro", 0, projectID, "computer", activityType, startTime)
+	result, err := tx.Exec(insertSessionSQL, "Sessione di lavoro", 0, projectID, "computer", activityType, startTime)
 	if err != nil {
 		return 0, fmt.Errorf("errore creazione sessione pendente: %v", err)
 	}
@@ -1262,11 +1285,12 @@ func StartPendingTracking(db *sql.DB, projectID *int, activityType *string, star
 
 	// Registra il pending tracking
 	insertPendingSQL := `INSERT INTO pending_tracking (session_id, project_id, activity_type, start_time, last_saved_seconds) VALUES (?, ?, ?, ?, ?)`
-	_, err = db.Exec(insertPendingSQL, sessionID, projectID, activityType, startTime, 0)
+	_, err = tx.Exec(insertPendingSQL, sessionID, projectID, activityType, startTime, 0)
 	if err != nil {
-		// Rollback: elimina la sessione creata
-		db.Exec("DELETE FROM sessions WHERE id = ?", sessionID)
 		return 0, fmt.Errorf("errore registrazione pending tracking: %v", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return 0, fmt.Errorf("errore conferma tracking pendente: %v", err)
 	}
 
 	fmt.Printf("[DB] Pending tracking avviato - Session ID: %d\n", sessionID)
@@ -1275,18 +1299,33 @@ func StartPendingTracking(db *sql.DB, projectID *int, activityType *string, star
 
 // UpdatePendingTracking aggiorna i secondi della sessione pendente
 func UpdatePendingTracking(db *sql.DB, sessionID int64, totalSeconds int) error {
+	tx, err := db.Begin()
+	if err != nil {
+		return fmt.Errorf("errore avvio aggiornamento tracking: %v", err)
+	}
+	defer tx.Rollback()
+
 	// Aggiorna i secondi nella sessione
 	updateSessionSQL := `UPDATE sessions SET seconds = ? WHERE id = ?`
-	_, err := db.Exec(updateSessionSQL, totalSeconds, sessionID)
+	result, err := tx.Exec(updateSessionSQL, totalSeconds, sessionID)
 	if err != nil {
 		return fmt.Errorf("errore aggiornamento sessione: %v", err)
+	}
+	if affected, _ := result.RowsAffected(); affected != 1 {
+		return fmt.Errorf("sessione pendente %d non trovata", sessionID)
 	}
 
 	// Aggiorna last_saved_seconds e last_update nel pending tracking
 	updatePendingSQL := `UPDATE pending_tracking SET last_saved_seconds = ?, last_update = CURRENT_TIMESTAMP WHERE session_id = ?`
-	_, err = db.Exec(updatePendingSQL, totalSeconds, sessionID)
+	result, err = tx.Exec(updatePendingSQL, totalSeconds, sessionID)
 	if err != nil {
 		return fmt.Errorf("errore aggiornamento pending tracking: %v", err)
+	}
+	if affected, _ := result.RowsAffected(); affected != 1 {
+		return fmt.Errorf("tracking pendente %d non trovato", sessionID)
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("errore conferma aggiornamento tracking: %v", err)
 	}
 
 	fmt.Printf("[DB] Pending tracking aggiornato - Session ID: %d, Secondi: %d\n", sessionID, totalSeconds)
@@ -1295,18 +1334,49 @@ func UpdatePendingTracking(db *sql.DB, sessionID int64, totalSeconds int) error 
 
 // FinalizePendingTracking finalizza la sessione e rimuove il pending tracking
 func FinalizePendingTracking(db *sql.DB, sessionID int64, finalSeconds int) error {
-	// Aggiorna i secondi finali nella sessione
+	if finalSeconds < 0 {
+		return fmt.Errorf("durata finale non valida")
+	}
+	tx, err := db.Begin()
+	if err != nil {
+		return fmt.Errorf("errore avvio finalizzazione tracking: %v", err)
+	}
+	defer tx.Rollback()
+
+	if finalSeconds == 0 {
+		if _, err := tx.Exec(`DELETE FROM pending_tracking WHERE session_id = ?`, sessionID); err != nil {
+			return fmt.Errorf("errore rimozione tracking vuoto: %v", err)
+		}
+		if _, err := tx.Exec(`DELETE FROM sessions WHERE id = ?`, sessionID); err != nil {
+			return fmt.Errorf("errore rimozione sessione vuota: %v", err)
+		}
+		if err := tx.Commit(); err != nil {
+			return fmt.Errorf("errore conferma rimozione tracking vuoto: %v", err)
+		}
+		return nil
+	}
+
+	// Aggiorna i secondi finali nella sessione (timestamp = start_time, invariato)
 	updateSessionSQL := `UPDATE sessions SET seconds = ? WHERE id = ?`
-	_, err := db.Exec(updateSessionSQL, finalSeconds, sessionID)
+	result, err := tx.Exec(updateSessionSQL, finalSeconds, sessionID)
 	if err != nil {
 		return fmt.Errorf("errore finalizzazione sessione: %v", err)
+	}
+	if affected, _ := result.RowsAffected(); affected != 1 {
+		return fmt.Errorf("sessione pendente %d non trovata", sessionID)
 	}
 
 	// Rimuovi il pending tracking
 	deletePendingSQL := `DELETE FROM pending_tracking WHERE session_id = ?`
-	_, err = db.Exec(deletePendingSQL, sessionID)
+	result, err = tx.Exec(deletePendingSQL, sessionID)
 	if err != nil {
 		return fmt.Errorf("errore rimozione pending tracking: %v", err)
+	}
+	if affected, _ := result.RowsAffected(); affected != 1 {
+		return fmt.Errorf("tracking pendente %d non trovato", sessionID)
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("errore conferma finalizzazione tracking: %v", err)
 	}
 
 	fmt.Printf("[DB] Pending tracking finalizzato - Session ID: %d, Secondi finali: %d\n", sessionID, finalSeconds)
@@ -1346,7 +1416,7 @@ func RecoverPendingTracking(db *sql.DB) (int, error) {
 	for _, p := range pendingList {
 		// Finalizza la sessione con i secondi salvati
 		if p.LastSavedSeconds > 0 {
-			// Aggiorna la sessione con i secondi salvati
+			// Aggiorna la sessione con i secondi salvati (timestamp = start_time, invariato)
 			updateSQL := `UPDATE sessions SET seconds = ? WHERE id = ?`
 			_, err := db.Exec(updateSQL, p.LastSavedSeconds, p.SessionID)
 			if err != nil {
