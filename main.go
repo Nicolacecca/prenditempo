@@ -68,10 +68,7 @@ func main() {
 
 	// Crea istanza App
 	app := NewApp()
-	app.SetDB(db)
-
-	// Inizializza variabili globali per tracking (carica anche idle threshold dal DB)
-	InitGlobalState(db)
+	app.SetDB(db) // inizializza anche lo stato del tracking e la soglia di inattività
 
 	// Crea applicazione Wails
 	err = wails.Run(&options.App{

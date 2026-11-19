@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"math"
 	"sort"
-	"strings"
 	"time"
 )
 
@@ -191,27 +190,6 @@ func IsWorkingDay(weekday time.Weekday, bitmask int) bool {
 	return (bitmask>>uint(weekday))&1 == 1
 }
 
-// parseTimestampLocal parsa un timestamp come ora locale.
-// Gestisce sia "YYYY-MM-DD HH:MM:SS" che "YYYY-MM-DDTHH:MM:SSZ" (Z viene ignorato, trattato come locale).
-func parseTimestampLocal(ts string) (time.Time, error) {
-	// Normalizza: rimuovi suffisso Z o offset timezone (+HH:MM / -HH:MM)
-	clean := ts
-	if len(clean) > 19 {
-		switch clean[19] {
-		case 'Z', '+', '-':
-			clean = clean[:19]
-		}
-	}
-	// Sostituisci T separatore con spazio
-	clean = strings.ReplaceAll(clean, "T", " ")
-
-	t, err := time.ParseInLocation("2006-01-02 15:04:05", clean, time.Local)
-	if err != nil {
-		return time.Time{}, fmt.Errorf("timestamp non riconosciuto: %s", ts)
-	}
-	return t, nil
-}
-
 // intervalOverlap restituisce i secondi di sovrapposizione tra [s1,e1] e [s2,e2]
 func intervalOverlap(s1, e1, s2, e2 time.Time) int64 {
 	start := s1
@@ -313,7 +291,7 @@ func GetMonthlyReport(db *sql.DB, year, month int, contractedHoursPerDay float64
 		if err := rows.Scan(&seconds, &timestamp, &projectName); err != nil {
 			return nil, fmt.Errorf("errore lettura sessione mensile: %v", err)
 		}
-		sessionStart, err := parseTimestampLocal(timestamp)
+		sessionStart, err := ParseLocalTimestamp(timestamp)
 		if err != nil {
 			return nil, err
 		}

@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"work-time-tracker-go/tracker"
 )
 
 func (a *App) validateActivityReference(activityType *string) error {
@@ -21,6 +23,22 @@ func (a *App) validateActivityReference(activityType *string) error {
 			return fmt.Errorf("tipo attività inesistente: %s", name)
 		}
 		return err
+	}
+	return nil
+}
+
+// validateNewActivityReference rifiuta anche i tipi archiviati: restano validi per lo
+// storico ma non si assegnano a nuove sessioni.
+func (a *App) validateNewActivityReference(activityType *string) error {
+	if err := a.validateActivityReference(activityType); err != nil || activityType == nil {
+		return err
+	}
+	var archived int
+	if err := a.db.QueryRow("SELECT COALESCE(archived, 0) FROM activity_types WHERE name = ?", strings.TrimSpace(*activityType)).Scan(&archived); err != nil {
+		return err
+	}
+	if archived == 1 {
+		return fmt.Errorf("il tipo attività %q è archiviato e non può essere usato per nuove sessioni", *activityType)
 	}
 	return nil
 }
@@ -42,15 +60,7 @@ func validateActivityType(name string, colorVariant float64, pattern string, dis
 }
 
 func parseLocalTimestamp(value string) (time.Time, error) {
-	clean := strings.Replace(strings.TrimSpace(value), "T", " ", 1)
-	if len(clean) > 19 && (clean[19] == 'Z' || clean[19] == '+' || clean[19] == '-') {
-		clean = clean[:19]
-	}
-	t, err := time.ParseInLocation("2006-01-02 15:04:05", clean, time.Local)
-	if err != nil {
-		return time.Time{}, fmt.Errorf("timestamp non valido: %s", value)
-	}
-	return t, nil
+	return tracker.ParseLocalTimestamp(value)
 }
 
 func parseClock(value string) (int, error) {

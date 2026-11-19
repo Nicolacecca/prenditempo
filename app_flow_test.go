@@ -13,11 +13,9 @@ func newTestApp(t *testing.T) (*App, func()) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	InitGlobalState(db)
 	app := NewApp()
 	app.SetDB(db)
 	return app, func() {
-		InitGlobalState(nil)
 		_ = db.Close()
 	}
 }
@@ -30,10 +28,10 @@ func TestTrackedProjectCannotBeArchivedOrDeleted(t *testing.T) {
 		t.Fatal(err)
 	}
 	projectID := int(projectID64)
-	globalStateMu.Lock()
-	globalIsTracking = true
-	globalCurrentProject = &tracker.Project{ID: projectID, Name: "In uso"}
-	globalStateMu.Unlock()
+	app.track.mu.Lock()
+	app.track.isTracking = true
+	app.track.currentProject = &tracker.Project{ID: projectID, Name: "In uso"}
+	app.track.mu.Unlock()
 	if err := app.ArchiveProject(projectID); err == nil {
 		t.Fatal("progetto in uso archiviato")
 	}
@@ -59,5 +57,25 @@ func TestCreateSessionValidatesProjectActivityAndTimestamp(t *testing.T) {
 	}
 	if err := app.CreateSession("Manuale", 60, &projectID, "computer", nil, "2026-08-19 09:00:00"); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestTrackingStateIsPerAppInstance(t *testing.T) {
+	first, cleanupFirst := newTestApp(t)
+	defer cleanupFirst()
+	second, cleanupSecond := newTestApp(t)
+	defer cleanupSecond()
+
+	first.track.mu.Lock()
+	first.track.isTracking = true
+	first.track.mu.Unlock()
+	if second.GetTrackingState().IsTracking {
+		t.Fatal("lo stato del tracking non deve essere condiviso tra istanze di App")
+	}
+	if err := first.SetIdleThreshold(17); err != nil {
+		t.Fatal(err)
+	}
+	if first.GetIdleThreshold() != 17 || second.GetIdleThreshold() != defaultIdleThresholdMinutes {
+		t.Fatalf("soglie: prima=%d seconda=%d", first.GetIdleThreshold(), second.GetIdleThreshold())
 	}
 }

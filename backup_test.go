@@ -31,14 +31,13 @@ func TestBackupRoundTripPreservesCurrentData(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	InitGlobalState(db)
 	app := NewApp()
 	app.SetDB(db)
 	backup, err := app.ExportData()
 	if err != nil {
 		t.Fatal(err)
 	}
-	if backup.Version != "2.3" || len(backup.Projects) != 1 {
+	if backup.Version != "2.4" || len(backup.Projects) != 1 {
 		t.Fatalf("backup inatteso: versione=%s progetti=%d", backup.Version, len(backup.Projects))
 	}
 	if backup.Projects[0].NoteText != "# Nota" || backup.Projects[0].BoardURL != "https://excalidraw.com/#room=abc" || len(backup.Settings) == 0 || len(backup.DayEvents) != 1 {
@@ -93,7 +92,6 @@ func TestImportCreatesAutomaticBackup(t *testing.T) {
 	}
 	app := NewApp()
 	app.SetDB(db)
-	InitGlobalState(db)
 	data, err := app.ExportData()
 	if err != nil {
 		t.Fatal(err)
@@ -146,5 +144,21 @@ func TestValidateBackupRejectsBrokenReferences(t *testing.T) {
 	}
 	if err := validateBackupData(data); err == nil {
 		t.Fatal("atteso errore per riferimento a progetto inesistente")
+	}
+}
+
+func TestValidateBackupRejectsTimestampsWithOffsetButAcceptsDriverZ(t *testing.T) {
+	session := func(ts string) ExportDataResult {
+		return ExportDataResult{Version: "2.4", Sessions: []ExportSession{{
+			ID: 1, AppName: "S", Seconds: 60, SessionType: "manual", Timestamp: ts,
+		}}}
+	}
+	if err := validateBackupData(session("2026-08-19T09:00:00Z")); err != nil {
+		t.Fatalf("il formato prodotto dal driver (Z) deve restare importabile: %v", err)
+	}
+	for _, ts := range []string{"2026-08-19T09:00:00+02:00", "2026-08-19 09:00:00-05:00"} {
+		if err := validateBackupData(session(ts)); err == nil {
+			t.Fatalf("%q: atteso rifiuto di un offset che verrebbe interpretato male", ts)
+		}
 	}
 }

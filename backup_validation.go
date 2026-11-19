@@ -7,7 +7,7 @@ import (
 )
 
 func validateBackupData(data ExportDataResult) error {
-	if data.Version != "" && data.Version != "1.0" && data.Version != "2.0" && data.Version != "2.1" && data.Version != "2.2" && data.Version != "2.3" {
+	if data.Version != "" && data.Version != "1.0" && data.Version != "2.0" && data.Version != "2.1" && data.Version != "2.2" && data.Version != "2.3" && data.Version != "2.4" {
 		return fmt.Errorf("versione backup non supportata: %s", data.Version)
 	}
 

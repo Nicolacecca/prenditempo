@@ -7,8 +7,6 @@ import (
 	"os"
 	"path/filepath"
 	"time"
-
-	"work-time-tracker-go/tracker"
 )
 
 // === EXPORT/IMPORT ===
@@ -47,6 +45,7 @@ type ExportActivityType struct {
 	ColorVariant float64 `json:"color_variant"`
 	Pattern      string  `json:"pattern"`
 	DisplayOrder int     `json:"display_order"`
+	Archived     bool    `json:"archived,omitempty"`
 }
 
 type ExportSetting struct {
@@ -82,7 +81,7 @@ func (a *App) ExportData() (*ExportDataResult, error) {
 
 	result := &ExportDataResult{
 		ExportDate: time.Now().Format("2006-01-02 15:04:05"),
-		Version:    "2.3",
+		Version:    "2.4",
 	}
 
 	// Esporta progetti
@@ -161,21 +160,21 @@ func (a *App) ExportData() (*ExportDataResult, error) {
 	rows.Close()
 
 	// Esporta tipi attività
-	rows, err = tx.Query("SELECT id, name, color_variant, pattern, display_order FROM activity_types")
+	rows, err = tx.Query("SELECT id, name, color_variant, pattern, display_order, COALESCE(archived, 0) FROM activity_types")
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
 	for rows.Next() {
-		var id, displayOrder int
+		var id, displayOrder, archived int
 		var name, pattern string
 		var colorVariant float64
-		if err := rows.Scan(&id, &name, &colorVariant, &pattern, &displayOrder); err != nil {
+		if err := rows.Scan(&id, &name, &colorVariant, &pattern, &displayOrder, &archived); err != nil {
 			return nil, err
 		}
 		result.ActivityTypes = append(result.ActivityTypes, ExportActivityType{
-			ID: id, Name: name, ColorVariant: colorVariant, Pattern: pattern, DisplayOrder: displayOrder,
+			ID: id, Name: name, ColorVariant: colorVariant, Pattern: pattern, DisplayOrder: displayOrder, Archived: archived == 1,
 		})
 	}
 	if err := rows.Err(); err != nil {
@@ -223,9 +222,9 @@ func (a *App) ExportData() (*ExportDataResult, error) {
 
 // ImportData importa i dati da un backup
 func (a *App) ImportData(data ExportDataResult) error {
-	globalStateMu.Lock()
-	defer globalStateMu.Unlock()
-	if globalIsTracking || globalWatcher != nil {
+	a.track.mu.Lock()
+	defer a.track.mu.Unlock()
+	if a.track.isTracking || a.track.watcher != nil {
 		return fmt.Errorf("ferma il tracking e gestisci l'inattività pendente prima di importare un backup")
 	}
 	if err := validateBackupData(data); err != nil {
@@ -254,7 +253,7 @@ func (a *App) ImportData(data ExportDataResult) error {
 			return fmt.Errorf("errore preparazione import: %w", err)
 		}
 	}
-	extendedBackup := data.Version == "2.0" || data.Version == "2.1" || data.Version == "2.2" || data.Version == "2.3" || len(data.Settings) > 0 || len(data.DayEvents) > 0
+	extendedBackup := data.Version == "2.0" || data.Version == "2.1" || data.Version == "2.2" || data.Version == "2.3" || data.Version == "2.4" || len(data.Settings) > 0 || len(data.DayEvents) > 0
 	if extendedBackup {
 		if _, err := tx.Exec("DELETE FROM day_events"); err != nil {
 			return fmt.Errorf("errore pulizia eventi: %w", err)
@@ -338,8 +337,8 @@ func (a *App) ImportData(data ExportDataResult) error {
 		}
 
 		_, err := tx.Exec(
-			"INSERT INTO activity_types (name, color_variant, pattern, display_order) VALUES (?, ?, ?, ?)",
-			at.Name, at.ColorVariant, pattern, at.DisplayOrder,
+			"INSERT INTO activity_types (name, color_variant, pattern, display_order, archived) VALUES (?, ?, ?, ?, ?)",
+			at.Name, at.ColorVariant, pattern, at.DisplayOrder, at.Archived,
 		)
 		if err != nil {
 			return err
@@ -365,18 +364,8 @@ func (a *App) ImportData(data ExportDataResult) error {
 	if err := tx.Commit(); err != nil {
 		return err
 	}
-	globalDB = a.db
-	globalIsTracking = false
-	globalCurrentProject = nil
-	globalWatcher = nil
-	globalPendingSessionID = 0
-	globalIdleThreshold = 5
-	if value, err := tracker.GetSetting(a.db, "idle_threshold"); err == nil && value != "" {
-		var threshold int
-		if _, err := fmt.Sscanf(value, "%d", &threshold); err == nil && threshold > 0 {
-			globalIdleThreshold = threshold
-		}
-	}
+	// Il lock è già detenuto: i dati importati possono aver cambiato la soglia di inattività.
+	a.resetTrackingStateLocked()
 	return nil
 }
 

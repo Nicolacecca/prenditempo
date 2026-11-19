@@ -2,7 +2,7 @@
 import { DeleteProject } from './wailsjs/go/main/App.js';
 import { GetSessions, DeleteSession } from './wailsjs/go/main/App.js';
 import { MigrateLegacyNotes } from './wailsjs/go/main/App.js';
-import { GetActivityTypes, CreateActivityType, UpdateActivityType, DeleteActivityType, ReorderActivityTypes } from './wailsjs/go/main/App.js';
+import { GetActivityTypes, GetAllActivityTypes, CreateActivityType, UpdateActivityType, DeleteActivityType, ReorderActivityTypes } from './wailsjs/go/main/App.js';
 import { ExportData, ImportData } from './wailsjs/go/main/App.js';
 import { ImportProjectJSON } from './wailsjs/go/main/App.js';
 import { IsAutoStartEnabled, EnableAutoStart, DisableAutoStart } from './wailsjs/go/main/App.js';
@@ -23,6 +23,8 @@ import './modules/board-link.js';
 // Constants for validation
 // Variabili globali
 let activityTypes = [];
+// Include i tipi archiviati: serve solo a colorare le sessioni storiche
+let allActivityTypes = [];
 
 initializeUIActions();
 
@@ -45,6 +47,7 @@ document.addEventListener('DOMContentLoaded', async function() {
 async function loadActivityTypes() {
     try {
         activityTypes = await GetActivityTypes();
+        allActivityTypes = await GetAllActivityTypes();
         populateActivityTypeSelect();
     } catch (error) {
         console.error('Errore caricamento tipi attività:', error);
@@ -355,7 +358,7 @@ function createTimelineSegment(session, startTime, totalMs) {
     const tooltipText = `${escapeHtml(activityTypeName)}\nInizio: ${dateStr} ${timeStr}\nDurata: ${Math.floor(session.seconds / 60)} min`;
 
     // Trova tipo attività per colore e pattern
-    const activityTypeObj = activityTypes.find(t => t.name === activityTypeName);
+    const activityTypeObj = allActivityTypes.find(t => t.name === activityTypeName);
     let bgStyle = 'background: #E4DACB;';
 
     // Se il tipo attività è "Nessuna" (null/vuoto), usa arancione semi-trasparente
@@ -796,8 +799,10 @@ window.saveActivityType = async function() {
 
 window.deleteActivityTypeById = async function(id, name) {
     try {
-        await DeleteActivityType(id);
-        showNotification('Tipo attività eliminato!', 'success');
+        const archived = await DeleteActivityType(id);
+        showNotification(archived
+            ? 'Tipo attività archiviato: resta nello storico ma non è più selezionabile.'
+            : 'Tipo attività eliminato!', 'success');
         await loadSettingsActivityTypes();
         await loadActivityTypes();
     } catch (error) {
