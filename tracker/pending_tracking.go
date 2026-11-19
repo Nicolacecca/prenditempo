@@ -140,6 +140,7 @@ func FinalizePendingTracking(db *sql.DB, sessionID int64, finalSeconds int) erro
 	}
 
 	fmt.Printf("[DB] Pending tracking finalizzato - Session ID: %d, Secondi finali: %d\n", sessionID, finalSeconds)
+	unisciDopoScrittura(db, sessionID)
 	return nil
 }
 
@@ -207,7 +208,11 @@ func recoverOnePending(db *sql.DB, p PendingTracking) error {
 		if _, err := tx.Exec(`DELETE FROM pending_tracking WHERE id = ?`, p.ID); err != nil {
 			return err
 		}
-		return tx.Commit()
+		if err := tx.Commit(); err != nil {
+			return err
+		}
+		unisciDopoScrittura(db, int64(p.SessionID))
+		return nil
 	}
 	// Sessione vuota: il pending ha una foreign key verso la sessione, va tolto prima.
 	if _, err := tx.Exec(`DELETE FROM pending_tracking WHERE id = ?`, p.ID); err != nil {

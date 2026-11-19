@@ -7,6 +7,7 @@ import { ExportData, ImportData } from './wailsjs/go/main/App.js';
 import { ImportProjectJSON } from './wailsjs/go/main/App.js';
 import { IsAutoStartEnabled, EnableAutoStart, DisableAutoStart } from './wailsjs/go/main/App.js';
 import { SetIdleThreshold, GetIdleThreshold } from './wailsjs/go/main/App.js';
+import { SetMergeGapSeconds, GetMergeGapSeconds } from './wailsjs/go/main/App.js';
 import { escapeHtml } from './utils.js';
 import { showNotification } from './notifications.js';
 import { initResocontoMonth, loadContractedHours, loadPatronSaintDate, loadRecurringHolidays, loadTrasfertaLabel, loadWorkingDays, loadYearHolidays } from './modules/monthly.js';
@@ -459,6 +460,7 @@ window.showSection = function(section) {
         navSettings.classList.add('active');
         loadSettingsActivityTypes();
         loadIdleThreshold();
+        loadMergeGap();
         loadAutostartStatus();
         loadContractedHours();
         loadWorkingDays();
@@ -807,6 +809,32 @@ window.deleteActivityTypeById = async function(id, name) {
         await loadActivityTypes();
     } catch (error) {
         console.error('Errore eliminazione:', error);
+        showNotification('Errore: ' + (error.message || error), 'error');
+    }
+}
+
+// === UNIONE AUTOMATICA SESSIONI ===
+
+async function loadMergeGap() {
+    try {
+        document.getElementById('mergeGapSetting').value = await GetMergeGapSeconds();
+    } catch (error) {
+        console.error('Errore caricamento intervallo di unione:', error);
+        document.getElementById('mergeGapSetting').value = 60; // Default
+    }
+}
+
+window.saveMergeGap = async function() {
+    const seconds = parseInt(document.getElementById('mergeGapSetting').value);
+    if (Number.isNaN(seconds) || seconds < 0 || seconds > 3600) {
+        showNotification('Inserisci un valore tra 0 e 3600 secondi', 'error');
+        return;
+    }
+    try {
+        await SetMergeGapSeconds(seconds);
+        showNotification('Intervallo di unione salvato!', 'success');
+    } catch (error) {
+        console.error('Errore salvataggio intervallo di unione:', error);
         showNotification('Errore: ' + (error.message || error), 'error');
     }
 }

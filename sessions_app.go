@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	"work-time-tracker-go/tracker"
@@ -54,7 +55,7 @@ func (a *App) CreateSession(appName string, seconds int, projectID *int, session
 	if sessionType != "computer" && sessionType != "off-computer" && sessionType != "manual" {
 		return fmt.Errorf("tipo sessione non valido")
 	}
-	if _, err := parseLocalTimestamp(timestamp); err != nil {
+	if err := validateNotInFuture(timestamp, seconds); err != nil {
 		return err
 	}
 	if err := a.validateNewActivityReference(activityType); err != nil {
@@ -76,6 +77,13 @@ func (a *App) CreateSession(appName string, seconds int, projectID *int, session
 func (a *App) UpdateSessionDuration(sessionID, seconds int) error {
 	if sessionID <= 0 || seconds <= 0 || seconds > 366*24*60*60 {
 		return fmt.Errorf("sessione o durata non valida")
+	}
+	session, err := tracker.CaricaSessioneById(a.db, sessionID)
+	if err != nil {
+		return err
+	}
+	if err := validateNotInFuture(session.Timestamp, seconds); err != nil {
+		return err
 	}
 	return tracker.AggiornaDurataSessione(a.db, sessionID, seconds)
 }
@@ -118,7 +126,7 @@ func (a *App) UpdateSessionComplete(sessionID int, newTimestamp string, newSecon
 	if sessionID <= 0 || newSeconds <= 0 || newSeconds > 366*24*60*60 {
 		return fmt.Errorf("sessione o durata non valida")
 	}
-	if _, err := parseLocalTimestamp(newTimestamp); err != nil {
+	if err := validateNotInFuture(newTimestamp, newSeconds); err != nil {
 		return err
 	}
 	if err := a.validateActivityReference(activityType); err != nil {
@@ -144,4 +152,18 @@ func (a *App) GetSessionById(sessionID int) (*SessionData, error) {
 		ActivityType: session.ActivityType,
 		Timestamp:    session.Timestamp,
 	}, nil
+}
+
+// GetMergeGapSeconds restituisce l'intervallo massimo (secondi) entro cui due sessioni
+// dello stesso progetto e tipo vengono unite automaticamente
+func (a *App) GetMergeGapSeconds() int {
+	return tracker.MergeGapSeconds(a.db)
+}
+
+// SetMergeGapSeconds imposta l'intervallo di unione automatica (0 = solo sessioni contigue)
+func (a *App) SetMergeGapSeconds(seconds int) error {
+	if seconds < 0 || seconds > tracker.MaxMergeGapSeconds {
+		return fmt.Errorf("l'intervallo deve essere compreso tra 0 e %d secondi", tracker.MaxMergeGapSeconds)
+	}
+	return tracker.SetSetting(a.db, tracker.MergeGapSettingKey, strconv.Itoa(seconds))
 }

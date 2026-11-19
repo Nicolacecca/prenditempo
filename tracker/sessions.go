@@ -106,6 +106,7 @@ func AggiornaActivityType(db *sql.DB, sessionID int, activityType *string) error
 	}
 
 	fmt.Printf("[DB] Activity type aggiornato per sessione ID %d\n", sessionID)
+	unisciDopoScrittura(db, int64(sessionID))
 	return nil
 }
 
@@ -150,6 +151,7 @@ func AggiornaDurataSessione(db *sql.DB, sessionID int, nuoviSecondi int) error {
 	}
 
 	fmt.Printf("[DB] Durata sessione ID %d aggiornata a %d secondi\n", sessionID, nuoviSecondi)
+	unisciDopoScrittura(db, int64(sessionID))
 	return nil
 }
 
@@ -172,6 +174,7 @@ func AggiornaSessioneCompleta(db *sql.DB, sessionID int, newTimestamp string, ne
 	}
 
 	fmt.Printf("[DB] Sessione ID %d aggiornata: timestamp=%s, secondi=%d\n", sessionID, newTimestamp, newSeconds)
+	unisciDopoScrittura(db, int64(sessionID))
 	return nil
 }
 
@@ -251,15 +254,18 @@ func DividiSessione(db *sql.DB, sessionID int, secondiPrimaParte int, activityTy
 
 	// Crea una nuova sessione per la seconda parte
 	insertSQL := `INSERT INTO sessions (app_name, seconds, project_id, session_type, activity_type, timestamp) VALUES (?, ?, ?, ?, ?, ?)`
-	_, err = tx.Exec(insertSQL, appName, secondiSecondaParte, projectID, sessionType, activityTypeSecondaParte, timestampSecondaParteStr)
+	insertResult, err := tx.Exec(insertSQL, appName, secondiSecondaParte, projectID, sessionType, activityTypeSecondaParte, timestampSecondaParteStr)
 	if err != nil {
 		return fmt.Errorf("errore creazione seconda parte: %v", err)
 	}
+	secondPartID, _ := insertResult.LastInsertId()
 
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("errore conferma divisione sessione: %v", err)
 	}
 	fmt.Printf("[DB] Sessione ID %d divisa in due parti: %d sec e %d sec\n", sessionID, secondiPrimaParte, secondiSecondaParte)
+	// Le due parti si riuniscono solo se hanno lo stesso tipo; si fondono anche con le vicine.
+	unisciDopoScrittura(db, int64(sessionID), secondPartID)
 	return nil
 }
 
@@ -278,5 +284,6 @@ func CreaSessione(db *sql.DB, appName string, seconds int, projectID *int, sessi
 	}
 
 	fmt.Printf("[DB] Nuova sessione creata con ID %d: %s (%d sec) alle %s\n", sessionID, appName, seconds, timestamp)
+	unisciDopoScrittura(db, sessionID)
 	return nil
 }

@@ -93,7 +93,7 @@ func TestSessionAcrossMidnightMonthAndYearEnd(t *testing.T) {
 		t.Fatalf("fine sessione = %s", end.Format(TimestampLayout))
 	}
 	// Una sessione adiacente subito dopo la mezzanotte è valida, una sovrapposta no.
-	if err := CreaSessione(db, "Dopo", 600, nil, "manual", nil, "2026-01-01 01:00:00"); err != nil {
+	if err := CreaSessione(db, "Dopo", 600, nil, "off-computer", nil, "2026-01-01 01:00:00"); err != nil {
 		t.Fatalf("adiacente oltre fine anno: %v", err)
 	}
 	if err := CreaSessione(db, "Sovrapposta", 600, nil, "manual", nil, "2026-01-01 00:30:00"); err == nil {
@@ -113,7 +113,7 @@ func TestSplitUsesTextArithmeticAndAcceptsDriverTimestamps(t *testing.T) {
 	}
 	var id int
 	db.QueryRow(`SELECT id FROM sessions`).Scan(&id)
-	if err := DividiSessione(db, id, 3600, nil, nil); err != nil {
+	if err := DividiSessione(db, id, 3600, strPtr("X"), strPtr("Y")); err != nil {
 		t.Fatal(err)
 	}
 	var second string

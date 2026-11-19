@@ -47,11 +47,11 @@ func TestSessionAdjacentIntervalsAllowed(t *testing.T) {
 		t.Fatal(err)
 	}
 	// 10:00-11:00 è adiacente a 09:00-10:00: non deve essere rifiutata.
-	if err := CreaSessione(db, "Dopo", 3600, nil, "manual", nil, "2026-08-19 10:00:00"); err != nil {
+	if err := CreaSessione(db, "Dopo", 3600, nil, "off-computer", nil, "2026-08-19 10:00:00"); err != nil {
 		t.Fatalf("intervalli adiacenti devono essere validi: %v", err)
 	}
 	// Adiacente anche prima: 08:00-09:00.
-	if err := CreaSessione(db, "Prima ancora", 3600, nil, "manual", nil, "2026-08-19 08:00:00"); err != nil {
+	if err := CreaSessione(db, "Prima ancora", 3600, nil, "off-computer", nil, "2026-08-19 08:00:00"); err != nil {
 		t.Fatalf("intervalli adiacenti devono essere validi: %v", err)
 	}
 }
@@ -67,7 +67,7 @@ func TestSessionOverlapAcrossMidnight(t *testing.T) {
 		t.Fatal("sovrapposizione oltre mezzanotte: atteso un errore")
 	}
 	// 01:00 del 20 è l'esatta fine della sessione precedente: adiacente, valida.
-	if err := CreaSessione(db, "Successiva", 1800, nil, "manual", nil, "2026-08-20 01:00:00"); err != nil {
+	if err := CreaSessione(db, "Successiva", 1800, nil, "off-computer", nil, "2026-08-20 01:00:00"); err != nil {
 		t.Fatalf("intervallo adiacente oltre mezzanotte deve essere valido: %v", err)
 	}
 }
@@ -96,7 +96,7 @@ func TestSessionUpdateDurationRejectsNewOverlap(t *testing.T) {
 	if err := CreaSessione(db, "A", 3600, nil, "manual", nil, "2026-08-19 09:00:00"); err != nil { // 09:00-10:00
 		t.Fatal(err)
 	}
-	if err := CreaSessione(db, "D", 3600, nil, "manual", nil, "2026-08-19 10:00:00"); err != nil { // 10:00-11:00, adiacente
+	if err := CreaSessione(db, "D", 3600, nil, "off-computer", nil, "2026-08-19 10:00:00"); err != nil { // 10:00-11:00, adiacente
 		t.Fatal(err)
 	}
 	var idA int
@@ -120,7 +120,7 @@ func TestSessionSplitDoesNotFalsePositive(t *testing.T) {
 		t.Fatal(err)
 	}
 	// Divide 09:00-11:00 in 09:00-10:00 e 10:00-11:00: non deve mai auto-collidere.
-	if err := DividiSessione(db, id, 3600, nil, nil); err != nil {
+	if err := DividiSessione(db, id, 3600, strPtr("X"), strPtr("Y")); err != nil {
 		t.Fatalf("split valido rifiutato per falso positivo: %v", err)
 	}
 
@@ -210,3 +210,5 @@ func TestLegacyOverlappingRowsRemainEditable(t *testing.T) {
 		t.Fatalf("modifica del solo tipo attività su riga legacy bloccata: %v", err)
 	}
 }
+
+func strPtr(s string) *string { return &s }

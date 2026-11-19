@@ -59,6 +59,24 @@ func validateActivityType(name string, colorVariant float64, pattern string, dis
 	return nil
 }
 
+// futureSessionSlack tollera l'arrotondamento al minuto dei selettori orari della UI.
+const futureSessionSlack = time.Minute
+
+// validateNotInFuture rifiuta le sessioni che terminano nel futuro. Oltre a non avere
+// senso per un registro di lavoro svolto, impedirebbero al tracking in corso di crescere
+// dentro una sessione già presente più avanti (creando una sovrapposizione).
+func validateNotInFuture(timestamp string, seconds int) error {
+	start, err := parseLocalTimestamp(timestamp)
+	if err != nil {
+		return err
+	}
+	end := start.Add(time.Duration(seconds) * time.Second)
+	if end.After(time.Now().Add(futureSessionSlack)) {
+		return fmt.Errorf("la sessione terminerebbe il %s, nel futuro: si possono registrare solo sessioni già svolte", end.Format("02/01/2006 alle 15:04"))
+	}
+	return nil
+}
+
 func parseLocalTimestamp(value string) (time.Time, error) {
 	return tracker.ParseLocalTimestamp(value)
 }
